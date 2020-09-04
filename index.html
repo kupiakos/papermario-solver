@@ -9,8 +9,16 @@
     <script type="text/javascript" src="index.js"></script>
 </head>
 <body>
-    <canvas id="wheel" width="500" height="500">
-        Your browser does not support &lt;canvas&gt;!
-    </canvas>
+    Arrow keys: Move<br/>
+    Space: Switch modes<br/>
+    Enter: Select<br/>
+    <div id="stage">
+        <canvas id="overlay-layer" width="500" height="500"></canvas>
+        <canvas id="enemy-layer" width="500" height="500"></canvas>
+        <canvas id="cursor-layer" width="500" height="500"></canvas>
+        <canvas id="wheel-layer" width="500" height="500">
+            Your browser does not support &lt;canvas&gt;!
+        </canvas>
+    </div>
 </body>
 </html>

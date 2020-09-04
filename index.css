@@ -1,14 +1,30 @@
 
-body {
+#stage {
     position: relative;
     width: 500px;
     height: 500px;
     margin: 0 auto;
 }
 
-#wheel {
+#stage canvas {
     position: absolute;
     width: 100%;
     height: 100%;
     top: 0;
+}
+
+#overlay-layer {
+    z-index: 4;
+}
+
+#enemy-layer {
+    z-index: 3;
+}
+
+#cursor-layer {
+    z-index: 2;
+}
+
+#wheel-layer {
+    z-index: 1;
 }

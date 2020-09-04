@@ -8,6 +8,9 @@ const INSIDE_FILL = '#a64250';
 const OUTSIDE_FILL = '#5AE67C';
 const OUTSIDE_BORDER = '#99851A';
 
+const CURSOR_UNFOCUSED = 'rgba(186, 210, 247, 0.5)';
+const CURSOR_FOCUSED = 'rgba(82, 148, 250, 0.8)';
+
 const ENEMY_COLOR = '#ee0';
 const ENEMY_RADIUS = 3;
 
@@ -36,6 +39,13 @@ const SHIFT_INDICES = function() {
   return arr;
 }();
 
+function cellCenter({th, r}) {
+  return {
+      x: CENTER.x + (R0 + (r+0.5) * CELL_WIDTH) * Math.cos((th+.5) * CELL_ANGLE),
+      y: CENTER.y + (R0 + (r+0.5) * CELL_WIDTH) * Math.sin((th+.5) * CELL_ANGLE),
+  };
+}
+
 // https://stackoverflow.com/a/45125187
 function innerStroke(ctx) {
   ctx.save();
@@ -46,12 +56,9 @@ function innerStroke(ctx) {
 }
 
 function filledArc(ctx, x, y, r1, r2, startAngle, endAngle, anticlockwise) {
-  ctx.moveTo(x, y);
-  ctx.beginPath();
   ctx.arc(x, y, r1, startAngle, endAngle, anticlockwise);
   ctx.arc(x, y, r2, endAngle, startAngle, !anticlockwise);
   ctx.closePath();
-  innerStroke(ctx);
 }
 
 // Rotate shift all elements in `arr` with indices in order of
@@ -60,7 +67,6 @@ function arrayStepRotate(arr, start, end, step, rotateLeft) {
   if (step == 0) {
     throw 'Step cannot be 0!';
   }
-  
 }
 
 class Cell {
@@ -68,22 +74,142 @@ class Cell {
     this.fill = fill;
     this.has_enemy = false;
   }
+
+  drawBase(ctx, {th, r}) {
+    ctx.strokeStyle = 'black';
+    ctx.fillStyle = this.fill;
+    ctx.lineWidth = 0.5;
+    ctx.moveTo(CENTER.x, CENTER.y);
+    ctx.beginPath();
+    filledArc(ctx,
+      CENTER.x, CENTER.y,
+      R0 + r * CELL_WIDTH, R0 + (r+1) * CELL_WIDTH,
+      th*CELL_ANGLE, (th+1)*CELL_ANGLE);
+    innerStroke(ctx);
+  }
+
+  drawTop(ctx, {th, r}) {
+    let dot_center = cellCenter({th, r});
+    if (this.has_enemy) {
+      ctx.fillStyle = ENEMY_COLOR;
+      ctx.moveTo(dot_center.x, dot_center.y);
+      ctx.beginPath();
+      ctx.arc(dot_center.x, dot_center.y, ENEMY_RADIUS, 0, 2*Math.PI);
+      ctx.fill();
+    }
+    if (DRAW_CELL_NUMBERS) {
+      ctx.fillStyle = 'red';
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 0.2;
+      ctx.font = '7px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      let cell_num = th + r * NUM_ANGLES;
+      ctx.strokeText(cell_num.toString(),
+        dot_center.x, dot_center.y);
+      ctx.fillText(cell_num.toString(),
+        dot_center.x, dot_center.y);
+    }
+  }
 };
 
+class Cursor {
+  constructor() {
+    this.type = 'ring';
+    this.pos = {r: 0, th: 0};
+    this.focused = false;
+  }
+
+  switchType() {
+    if (this.type === 'ring') {
+      this.type = 'row';
+    } else if (this.type === 'row') {
+      this.type = 'ring';
+    }
+  }
+
+  sectionSelected(type, index) {
+    if (this.type !== type) { return false; }
+    if (this.type === 'ring') {
+      return index === this.pos.r;
+    } else if (this.type === 'row') {
+      return index === this.pos.th;
+    }
+  }
+
+  cellSelected({th, r}) {
+    if (this.type === 'ring') {
+      return r === this.pos.r;
+    } else if (this.type === 'row') {
+      return th === this.pos.th;
+    }
+  }
+
+  move(reverse) {
+    if (this.type === 'ring') {
+      this.pos.r = (this.pos.r + 1) % NUM_RINGS;
+      return;
+    }
+    let d = reverse ? 1 : -1;
+    this.pos.th = (this.pos.th + d + NUM_ANGLES) % (NUM_ANGLES / 2);
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = this.focused ? CURSOR_FOCUSED : CURSOR_UNFOCUSED;
+    if (this.type === 'ring') {
+      let r = this.pos.r;
+      ctx.moveTo(CENTER.x, CENTER.y);
+      ctx.beginPath();
+      ctx.arc(CENTER.x, CENTER.y, R0 + (r+1)*CELL_WIDTH, 0, Math.PI*2, false);
+      ctx.moveTo(CENTER.x, CENTER.y);
+      ctx.arc(CENTER.x, CENTER.y, R0 + r*CELL_WIDTH, 0, Math.PI*2, true);
+      ctx.fill();
+    } else if (this.type === 'row') {
+      let th = this.pos.th;
+      ctx.moveTo(CENTER.x, CENTER.y);
+      ctx.beginPath();
+      filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
+        th*CELL_ANGLE, (th+1)*CELL_ANGLE);
+      ctx.moveTo(CENTER.x, CENTER.y);
+      th = (th + NUM_ANGLES / 2) % NUM_ANGLES;
+      filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
+        th*CELL_ANGLE, (th+1)*CELL_ANGLE);
+      ctx.fill();
+    }
+  }
+}
+
 class Wheel {
-  constructor(canvas) {
-    this.canvas = canvas;
-    if (!canvas.getContext) { throw 'No canvas context!'; }
+  constructor(canvases) {
+    this.canvases = canvases;
+    this.canvas_size = {
+      width: canvases.wheel.width,
+      height: canvases.wheel.height,
+    }
+    this.layers = {};
+    for (let layer_name in canvases) {
+      let canvas = canvases[layer_name];
+      if (canvas.width !== this.canvas_size.width ||
+        canvas.height !== this.canvas_size.height) {
+          throw 'Uneven canvas size!';
+      }
+      if (!canvas.getContext) { throw 'No canvas context!'; }
+      let ctx = canvas.getContext('2d');
+      ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
+      this.layers[layer_name] = ctx;
+    }
     this.wheel = [];
     for (let i = 0; i < NUM_CELLS; ++i) {
       let color = (((i % 2 + Math.floor(i / NUM_ANGLES)) % 2 === 0)
         ? CELL1_FILL : CELL2_FILL);
       this.wheel.push(new Cell(color));
     }
+    this.cursor = new Cursor();
   }
 
   // Rotate ring `r` once.
   rotateRing(r, clockwise) {
+    console.log('Rotate ring', r, clockwise ? 'clockwise' : 'anti-clockwise');
     let start = r*NUM_ANGLES;
     let step = 1;
     let end = (r+1)*NUM_ANGLES;
@@ -99,6 +225,7 @@ class Wheel {
 
   // Shift the row at angular position th.
   shiftRow(th, outward) {
+    console.log('Shift row', th, outward ? 'outward' : 'inward');
     if (th >= NUM_ANGLES / 2) {
       this.shiftRow(th - NUM_ANGLES / 2, !outward);
       return;
@@ -124,7 +251,6 @@ class Wheel {
         }
         step = -step;
       }
-      console.log(i, j);
       [arr[i], arr[j]] = [arr[j], arr[i]];
       i = j;
     }
@@ -141,54 +267,85 @@ class Wheel {
     return this.wheel[th % NUM_ANGLES + r * NUM_ANGLES];
   }
 
-  getContext() {
-    let ctx = this.canvas.getContext('2d');
-    ctx.scale(this.canvas.width / FRAME.width,
-      this.canvas.height / FRAME.height);
-    return ctx;
-  }
-
   draw() {
-    let ctx = this.getContext();
-    this.drawWheel(ctx);
-    this.drawBackground(ctx);
-    return ctx;
+    this.drawWheel();
+    this.drawBackground();
+    this.drawCursor();
   }
 
-  drawRing(ctx, r) {
+  getLayer(layer_name) {
+    if (layer_name === undefined) {
+      layer_name = 'wheel';
+    }
+    return this.layers[layer_name];
+  }
+
+  drawRing(r) {
+    let base = this.getLayer();
+    let enemies = this.getLayer('enemy');
+
+    // Clear enemies in the ring.
+    enemies.save();
+    enemies.fillStyle = 'black';
+    enemies.globalCompositeOperation = 'destination-out';
+    enemies.moveTo(CENTER.x, CENTER.y);
+    enemies.beginPath();
+    enemies.arc(CENTER.x, CENTER.y, R0 + (r+1)*CELL_WIDTH, 0, Math.PI*2, false);
+    enemies.moveTo(CENTER.x, CENTER.y);
+    enemies.arc(CENTER.x, CENTER.y, R0 + r*CELL_WIDTH, 0, Math.PI*2, true);
+    enemies.fill();
+    enemies.restore();
+
     for (let th = 0; th < NUM_ANGLES; ++th) {
-      this.drawCell(ctx, {th, r});
+      let cell = this.getCell({th, r});
+      cell.drawBase(base, {th, r});
+      cell.drawTop(enemies, {th, r});
     }
   }
 
-  drawRow(ctx, th) {
+  drawRow(th) {
+    let base = this.getLayer();
+    let enemies = this.getLayer('enemy');
+    
+    // Clear enemies in the row.
+    enemies.save();
+    enemies.fillStyle = 'black';
+    enemies.globalCompositeOperation = 'destination-out';
+    enemies.moveTo(CENTER.x, CENTER.y);
+    enemies.beginPath();
+    filledArc(enemies, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
+      th*CELL_ANGLE, (th+1)*CELL_ANGLE);
+    enemies.fill();
+    enemies.restore();
+
     for (let r = 0; r < NUM_RINGS; ++r) {
-      this.drawCell(ctx, {th, r});
+      let cell = this.getCell({th, r});
+      cell.drawBase(base, {th, r});
+      cell.drawTop(enemies, {th, r});
     }
   }
 
-  drawWheel(ctx) {
+  drawCellTop(pos) {
+    this.getCell(pos).drawTop(this.getLayer('enemy'), pos);
+  }
+
+  drawWheel() {
     // Wheel cells
     for (let r = 0; r < NUM_RINGS; ++r) {
-      this.drawRing(ctx, r);
+      this.drawRing(r);
     }
-
-    // Lines around wheel
-    ctx.beginPath();
-    ctx.lineWidth = .5;
-    ctx.strokeStyle = 'black';
-    for (let th = 0; th < NUM_ANGLES; ++th) {
-        ctx.moveTo(
-            CENTER.x + R0*Math.cos(th*CELL_ANGLE),
-            CENTER.y + R0*Math.sin(th*CELL_ANGLE));
-        ctx.lineTo(
-            CENTER.x + (R0+CELL_WIDTH * 4)*Math.cos(th*CELL_ANGLE),
-            CENTER.y + (R0+CELL_WIDTH * 4)*Math.sin(th*CELL_ANGLE));
-    }
-    ctx.stroke();
   }
 
-  drawBackground(ctx) {
+  drawCursor() {
+    let ctx = this.getLayer('cursor');
+    ctx.clearRect(0, 0, FRAME.width, FRAME.height);
+    if (this.cursor) {
+      this.cursor.draw(ctx);
+    }
+  }
+
+  drawBackground() {
+    let ctx = this.getLayer('overlay');
     // Inner circle.
     ctx.fillStyle = INSIDE_BORDER;
     ctx.moveTo(CENTER.x, CENTER.y);
@@ -207,49 +364,16 @@ class Wheel {
     ctx.strokeStyle = OUTSIDE_BORDER;
     ctx.moveTo(CENTER.x, CENTER.y);
     ctx.beginPath();
-    const OUTSIDE_R0 = R0 + 4 * CELL_WIDTH;
+    const OUTSIDE_R0 = R0 + NUM_RINGS * CELL_WIDTH;
     ctx.arc(CENTER.x, CENTER.y, OUTSIDE_R0 + OUTSIDE_WIDTH, 0, Math.PI*2, false);
     ctx.moveTo(CENTER.x, CENTER.y);
     ctx.arc(CENTER.x, CENTER.y, OUTSIDE_R0, 0, Math.PI*2, true);
     innerStroke(ctx);
   }
 
-  drawCell(ctx, {th, r}) {
-    const cell = this.getCell({th, r});
-    ctx.strokeStyle = 'black';
-    ctx.fillStyle = cell.fill;
-    ctx.lineWidth = 0.5;
-    filledArc(ctx,
-      CENTER.x, CENTER.y,
-      R0 + r * CELL_WIDTH, R0 + (r+1) * CELL_WIDTH,
-      th*CELL_ANGLE, (th+1)*CELL_ANGLE,
-      false);
-    let dot_center = this.cellCenter({th, r});
-    if (cell.has_enemy) {
-      ctx.fillStyle = ENEMY_COLOR;
-      ctx.moveTo(dot_center.x, dot_center.y);
-      ctx.beginPath();
-      ctx.arc(dot_center.x, dot_center.y, ENEMY_RADIUS, 0, 2*Math.PI);
-      ctx.fill();
-    }
-    if (DRAW_CELL_NUMBERS) {
-      ctx.fillStyle = 'red';
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 0.2;
-      ctx.font = '7px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      let cellNum = th + r * NUM_ANGLES;
-      ctx.strokeText(cellNum.toString(),
-        dot_center.x, dot_center.y);
-      ctx.fillText(cellNum.toString(),
-        dot_center.x, dot_center.y);
-    }
-  }
-
   xyToWheelPos(pos) {
-    let x = pos.x / this.canvas.width * FRAME.width - CENTER.x;
-    let y = pos.y / this.canvas.height * FRAME.height - CENTER.y;
+    let x = pos.x / this.canvas_size.width * FRAME.width - CENTER.x;
+    let y = pos.y / this.canvas_size.height * FRAME.height - CENTER.y;
     let th = Math.floor(Math.atan2(-y, -x) /
       (2*Math.PI) * NUM_ANGLES + NUM_ANGLES/2);
     let r = Math.floor((Math.sqrt(x*x + y*y) - R0)
@@ -257,12 +381,5 @@ class Wheel {
     if (r < 0 || r >= NUM_RINGS) { return null; }
     if (th < 0 || th >= NUM_ANGLES) { throw 'Theta out of range??'; }
     return {th, r};
-  }
-
-  cellCenter({th, r}) {
-    return {
-        x: CENTER.x + (R0 + (r+0.5) * CELL_WIDTH) * Math.cos((th+.5) * CELL_ANGLE),
-        y: CENTER.y + (R0 + (r+0.5) * CELL_WIDTH) * Math.sin((th+.5) * CELL_ANGLE),
-    };
   }
 };
