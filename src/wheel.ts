@@ -1,3 +1,29 @@
+type Context = CanvasRenderingContext2D;
+type CursorMode = 'ring' | 'row';
+type LayerName = 'overlay' | 'enemy' | 'cursor' | 'wheel';
+
+type Layers = {
+  [name in LayerName]: Context;
+};
+
+type Canvases = {
+  [name in LayerName]: HTMLCanvasElement;
+}
+
+interface Size {
+  width: number;
+  height: number;
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface RingPosition {
+  r: number;
+  th: number;
+}
 
 const CELL1_FILL = '#ada786';
 const CELL2_FILL = '#8f8a6d';
@@ -18,28 +44,19 @@ const CENTER = {x: 80, y: 80};
 const R0 = 25;
 const CELL_WIDTH = 10;
 const OUTSIDE_WIDTH = 15;
-const FRAME = {
-  width: CENTER.x + R0 + 4 * CELL_WIDTH + OUTSIDE_WIDTH,
-  height: CENTER.y + R0 + 4 * CELL_WIDTH + OUTSIDE_WIDTH,
-};
-const NUM_RINGS = 4;
-const NUM_ANGLES = 12;
-const NUM_CELLS = NUM_RINGS * NUM_ANGLES;
+
+export const NUM_RINGS = 4;
+export const NUM_ANGLES = 12;
+export const NUM_CELLS = NUM_RINGS * NUM_ANGLES;
 const CELL_ANGLE = 2*Math.PI / NUM_ANGLES;
 const DRAW_CELL_NUMBERS = false;
 
-const SHIFT_INDICES = function() {
-  let arr = [];
-  for (let i = 0; i < NUM_CELLS * 2; i += NUM_ANGLES) {
-    arr.push(i);
-  }
-  for (let i = NUM_CELLS - NUM_ANGLES / 2; i > 0; i -= NUM_ANGLES) {
-    arr.push(i);
-  }
-  return arr;
-}();
+const FRAME: Size = {
+  width: CENTER.x + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
+  height: CENTER.y + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
+};
 
-function cellCenter({th, r}) {
+function cellCenter({th, r}: RingPosition) {
   return {
       x: CENTER.x + (R0 + (r+0.5) * CELL_WIDTH) * Math.cos((th+.5) * CELL_ANGLE),
       y: CENTER.y + (R0 + (r+0.5) * CELL_WIDTH) * Math.sin((th+.5) * CELL_ANGLE),
@@ -47,7 +64,7 @@ function cellCenter({th, r}) {
 }
 
 // https://stackoverflow.com/a/45125187
-function innerStroke(ctx) {
+function innerStroke(ctx: Context) {
   ctx.save();
   ctx.clip();
   ctx.fill();
@@ -55,27 +72,26 @@ function innerStroke(ctx) {
   ctx.restore();
 }
 
-function filledArc(ctx, x, y, r1, r2, startAngle, endAngle, anticlockwise) {
+function filledArc(ctx: Context,
+    x: number, y: number,
+    r1: number, r2: number,
+    startAngle: number, endAngle: number,
+    anticlockwise: boolean = false) {
   ctx.arc(x, y, r1, startAngle, endAngle, anticlockwise);
   ctx.arc(x, y, r2, endAngle, startAngle, !anticlockwise);
   ctx.closePath();
 }
 
-// Rotate shift all elements in `arr` with indices in order of
-// Python range(start, end, step).
-function arrayStepRotate(arr, start, end, step, rotateLeft) {
-  if (step == 0) {
-    throw 'Step cannot be 0!';
-  }
-}
-
 class Cell {
-  constructor(fill) {
+  readonly fill: string;
+  has_enemy: boolean;
+
+  constructor(fill: string) {
     this.fill = fill;
     this.has_enemy = false;
   }
 
-  drawBase(ctx, {th, r}) {
+  drawBase(ctx: Context, {th, r}: RingPosition) {
     ctx.strokeStyle = 'black';
     ctx.fillStyle = this.fill;
     ctx.lineWidth = 0.5;
@@ -88,7 +104,7 @@ class Cell {
     innerStroke(ctx);
   }
 
-  drawTop(ctx, {th, r}) {
+  drawTop(ctx: Context, {th, r}: RingPosition) {
     let dot_center = cellCenter({th, r});
     if (this.has_enemy) {
       ctx.fillStyle = ENEMY_COLOR;
@@ -114,6 +130,10 @@ class Cell {
 };
 
 class Cursor {
+  type: CursorMode;
+  pos: RingPosition;
+  focused: boolean;
+
   constructor() {
     this.type = 'ring';
     this.pos = {r: 0, th: 0};
@@ -128,7 +148,7 @@ class Cursor {
     }
   }
 
-  sectionSelected(type, index) {
+  sectionSelected(type: CursorMode, index: number) {
     if (this.type !== type) { return false; }
     if (this.type === 'ring') {
       return index === this.pos.r;
@@ -137,7 +157,7 @@ class Cursor {
     }
   }
 
-  cellSelected({th, r}) {
+  cellSelected({th, r}: RingPosition) {
     if (this.type === 'ring') {
       return r === this.pos.r;
     } else if (this.type === 'row') {
@@ -145,7 +165,7 @@ class Cursor {
     }
   }
 
-  move(reverse) {
+  move(reverse: boolean) {
     if (this.type === 'ring') {
       this.pos.r = (this.pos.r + 1) % NUM_RINGS;
       return;
@@ -154,7 +174,7 @@ class Cursor {
     this.pos.th = (this.pos.th + d + NUM_ANGLES) % (NUM_ANGLES / 2);
   }
 
-  draw(ctx) {
+  draw(ctx: Context) {
     ctx.fillStyle = this.focused ? CURSOR_FOCUSED : CURSOR_UNFOCUSED;
     if (this.type === 'ring') {
       let r = this.pos.r;
@@ -179,14 +199,20 @@ class Cursor {
   }
 }
 
-class Wheel {
-  constructor(canvases) {
+export class Wheel {
+  readonly layers: Layers;
+  readonly canvases: Canvases;
+  readonly canvas_size: Size;
+  readonly wheel: Cell[];
+  cursor: Cursor;
+
+  constructor(canvases: Canvases) {
     this.canvases = canvases;
     this.canvas_size = {
       width: canvases.wheel.width,
       height: canvases.wheel.height,
-    }
-    this.layers = {};
+    };
+    let layers = {};
     for (let layer_name in canvases) {
       let canvas = canvases[layer_name];
       if (canvas.width !== this.canvas_size.width ||
@@ -196,8 +222,9 @@ class Wheel {
       if (!canvas.getContext) { throw 'No canvas context!'; }
       let ctx = canvas.getContext('2d');
       ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
-      this.layers[layer_name] = ctx;
+      layers[layer_name] = ctx;
     }
+    this.layers = layers as Layers;
     this.wheel = [];
     for (let i = 0; i < NUM_CELLS; ++i) {
       let color = (((i % 2 + Math.floor(i / NUM_ANGLES)) % 2 === 0)
@@ -208,7 +235,7 @@ class Wheel {
   }
 
   // Rotate ring `r` once.
-  rotateRing(r, clockwise) {
+  rotateRing(r: number, clockwise: boolean = false) {
     console.log('Rotate ring', r, clockwise ? 'clockwise' : 'anti-clockwise');
     let start = r*NUM_ANGLES;
     let step = 1;
@@ -224,7 +251,7 @@ class Wheel {
   }
 
   // Shift the row at angular position th.
-  shiftRow(th, outward) {
+  shiftRow(th: number, outward: boolean = false) {
     console.log('Shift row', th, outward ? 'outward' : 'inward');
     if (th >= NUM_ANGLES / 2) {
       this.shiftRow(th - NUM_ANGLES / 2, !outward);
@@ -256,11 +283,11 @@ class Wheel {
     }
   }
 
-  clickCell(pos) {
+  clickCell(pos: RingPosition) {
     this.getCell(pos).has_enemy = true;
   }
 
-  getCell({th, r}) {
+  getCell({th, r}: RingPosition) {
     if (th < 0 || th >= NUM_ANGLES || r < 0 || r >= NUM_RINGS) {
       throw 'Cell index out of range: ' + {th, r};
     }
@@ -273,14 +300,11 @@ class Wheel {
     this.drawCursor();
   }
 
-  getLayer(layer_name) {
-    if (layer_name === undefined) {
-      layer_name = 'wheel';
-    }
+  getLayer(layer_name: LayerName = 'wheel') {
     return this.layers[layer_name];
   }
 
-  drawRing(r) {
+  drawRing(r: number) {
     let base = this.getLayer();
     let enemies = this.getLayer('enemy');
 
@@ -303,7 +327,7 @@ class Wheel {
     }
   }
 
-  drawRow(th) {
+  drawRow(th: number) {
     let base = this.getLayer();
     let enemies = this.getLayer('enemy');
     
@@ -325,7 +349,7 @@ class Wheel {
     }
   }
 
-  drawCellTop(pos) {
+  drawCellTop(pos: RingPosition) {
     this.getCell(pos).drawTop(this.getLayer('enemy'), pos);
   }
 
@@ -371,7 +395,7 @@ class Wheel {
     innerStroke(ctx);
   }
 
-  xyToWheelPos(pos) {
+  xyToWheelPos(pos: Point) {
     let x = pos.x / this.canvas_size.width * FRAME.width - CENTER.x;
     let y = pos.y / this.canvas_size.height * FRAME.height - CENTER.y;
     let th = Math.floor(Math.atan2(-y, -x) /

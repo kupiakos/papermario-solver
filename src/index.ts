@@ -1,10 +1,11 @@
+import { Wheel, NUM_ANGLES } from './wheel';
 
 function main() {
-  let overlay = document.getElementById('overlay-layer');
+  let overlay = document.getElementById('overlay-layer') as HTMLCanvasElement;
   let wheel = new Wheel({
-    enemy: document.getElementById('enemy-layer'),
-    wheel: document.getElementById('wheel-layer'),
-    cursor: document.getElementById('cursor-layer'),
+    enemy: document.getElementById('enemy-layer') as HTMLCanvasElement,
+    wheel: document.getElementById('wheel-layer') as HTMLCanvasElement,
+    cursor: document.getElementById('cursor-layer') as HTMLCanvasElement,
     overlay
   });
   wheel.draw();
@@ -25,10 +26,10 @@ function main() {
     // One exception is while actively shifting.
     // Then, it depends where on the board you are.
     // On the bottom-left/top-right rows, Up = Right, Down = Left.
-    if (event.key === ' ' && !wheel.cursor.focused) {
+    if (event.key === 'Enter' && !wheel.cursor.focused) {
       wheel.cursor.switchType();
       wheel.drawCursor();
-    } else if (event.key === 'Enter') {
+    } else if (event.key === ' ') {
       wheel.cursor.focused = !wheel.cursor.focused;
       wheel.drawCursor();
     } else {
