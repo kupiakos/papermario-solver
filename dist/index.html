@@ -1,24 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paper Mario Puzzle Solver Maybe</title>
-    <link rel="stylesheet" href="index.css">
-    <script type="text/javascript" src="index.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper Mario Puzzle Solver Maybe</title>
+  <link rel="stylesheet" href="index.css">
+  <script type="text/javascript" src="index.js"></script>
 </head>
 <body>
-    Arrow keys: Move<br/>
-    Enter: Switch modes<br/>
-    Space: Select<br/>
-    Click: Add an "enemy"
+  <div class="content">
+    <h1>Paper&nbsp;Mario: Origami&nbsp;King Solver</h1>
     <div id="stage">
-        <canvas id="overlay-layer" width="500" height="500"></canvas>
-        <canvas id="enemy-layer" width="500" height="500"></canvas>
-        <canvas id="cursor-layer" width="500" height="500"></canvas>
-        <canvas id="wheel-layer" width="500" height="500">
-            Your browser does not support &lt;canvas&gt;!
-        </canvas>
+      <canvas id="overlay-layer" width="500" height="500"></canvas>
+      <canvas id="enemy-layer" width="500" height="500"></canvas>
+      <canvas id="cursor-layer" width="500" height="500"></canvas>
+      <canvas id="wheel-layer" width="500" height="500">
+        Your browser does not support &lt;canvas&gt;!
+      </canvas>
     </div>
+    <div class="controls">
+      <div class="control">Arrow keys: Select Ring</div>
+      <div class="control">Enter: Toggle Rotate/Slide</div>
+      <div class="control">Space: Confirm</div>
+      <div class="control">Click: Add enemy</div>
+    </div>
+    Mobile support coming eventually.
+  </div>
+  <footer>Made by <a href="http://alyssa.codes">Alyssa Haroldsen</a></footer>
 </body>
 </html>

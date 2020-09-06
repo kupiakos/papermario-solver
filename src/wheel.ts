@@ -395,6 +395,7 @@ export class Wheel {
     innerStroke(ctx);
   }
 
+  // FIXME: Returns the wrong result when CSS scaled.
   xyToWheelPos(pos: Point) {
     let x = pos.x / this.canvas_size.width * FRAME.width - CENTER.x;
     let y = pos.y / this.canvas_size.height * FRAME.height - CENTER.y;

@@ -1,4 +1,83 @@
 
+@font-face {
+    font-family: 'Paper Mario Headers';
+    font-style: normal;
+    font-weight: 400;
+    src: url('headers.ttf');
+}
+
+@font-face {
+    font-family: 'Paper Mario Text';
+    font-style: normal;
+    src: url('text.woff');
+}
+
+html {
+    background-color: #5d8261;
+    background-image: url('paper.png');
+    margin: 0;
+}
+
+a[href] {
+    color: #3859bb;
+    text-decoration: none;
+}
+
+h1 {
+    font-family: 'Paper Mario Headers';
+    font-size: 52px;
+    background: -webkit-linear-gradient(#ff0c0c,#ffb300);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 3px #eee;
+    filter: drop-shadow(1px 2px 1px #222);
+    margin: 0;
+    padding: 1rem 0;
+    line-height: 2.8rem;
+}
+
+body {
+    position: relative;
+    background-color: #e0e0d7;
+    background-image: url('paper.png');
+    max-width: 800px;
+    border: 20px;
+    border-radius: 20px;
+    margin: 8px auto;
+    font-family: 'Paper Mario Text';
+    text-align: center;
+    box-shadow: 0px 3px 5px #222;
+    min-height: 800px;
+    color: #222;
+}
+
+.content {
+    padding: 10px;
+    padding-bottom: 2rem;
+}
+
+.controls {
+    margin: 5px;
+}
+
+.control {
+    display: inline-block;
+    white-space: nowrap;
+    margin: 2px 5px;
+}
+
+footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 2rem;
+    line-height: 2rem;
+    font-size: 14px;
+    text-align: center;
+    vertical-align: middle;
+}
+
 #stage {
     position: relative;
     width: 500px;
@@ -11,6 +90,44 @@
     width: 100%;
     height: 100%;
     top: 0;
+    left: 0;
+}
+
+@media screen and (max-width: 500px) {
+    #stage {
+        width: 100%;
+        height: 100%;
+        padding-bottom: 100%;
+    }
+}
+
+@media screen and (max-width: 600px) {
+    html {
+        background-color: #e0e0d7;
+        margin: 0;
+    }
+
+    h1 {
+        font-size: 42px;
+    }
+
+    body {
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background-image: none;
+        background-color: transparent;
+        min-height: 100vh;
+        margin: 0;
+    }
+
+    .content {
+        padding: 0 0 2rem 0;
+    }
+
+    footer {
+        position: absolute;
+    }
 }
 
 #overlay-layer {
