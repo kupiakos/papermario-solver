@@ -1,5 +1,4 @@
 type Context = CanvasRenderingContext2D;
-type CursorMode = 'ring' | 'row';
 type LayerName = 'overlay' | 'enemy' | 'cursor' | 'wheel';
 
 type Layers = {
@@ -20,10 +19,25 @@ interface Point {
   y: number;
 }
 
-interface RingPosition {
+export interface RingPosition {
   r: number;
   th: number;
 }
+
+export const CENTER = {x: 80, y: 80};
+export const R0 = 25;
+export const CELL_WIDTH = 10;
+
+export const NUM_RINGS = 4;
+export const NUM_ANGLES = 12;
+export const NUM_CELLS = NUM_RINGS * NUM_ANGLES;
+export const CELL_ANGLE = 2*Math.PI / NUM_ANGLES;
+export const OUTSIDE_WIDTH = 15;
+
+export const FRAME: Size = {
+  width: CENTER.x + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
+  height: CENTER.y + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
+};
 
 const CELL1_FILL = '#ada786';
 const CELL2_FILL = '#8f8a6d';
@@ -34,27 +48,10 @@ const INSIDE_FILL = '#a64250';
 const OUTSIDE_FILL = '#5AE67C';
 const OUTSIDE_BORDER = '#99851A';
 
-const CURSOR_UNFOCUSED = 'rgba(186, 210, 247, 0.5)';
-const CURSOR_FOCUSED = 'rgba(82, 148, 250, 0.8)';
-
 const ENEMY_COLOR = '#ee0';
 const ENEMY_RADIUS = 3;
 
-const CENTER = {x: 80, y: 80};
-const R0 = 25;
-const CELL_WIDTH = 10;
-const OUTSIDE_WIDTH = 15;
-
-export const NUM_RINGS = 4;
-export const NUM_ANGLES = 12;
-export const NUM_CELLS = NUM_RINGS * NUM_ANGLES;
-const CELL_ANGLE = 2*Math.PI / NUM_ANGLES;
 const DRAW_CELL_NUMBERS = false;
-
-const FRAME: Size = {
-  width: CENTER.x + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
-  height: CENTER.y + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
-};
 
 function cellCenter({th, r}: RingPosition) {
   return {
@@ -72,7 +69,7 @@ function innerStroke(ctx: Context) {
   ctx.restore();
 }
 
-function filledArc(ctx: Context,
+export function filledArc(ctx: Context,
     x: number, y: number,
     r1: number, r2: number,
     startAngle: number, endAngle: number,
@@ -129,82 +126,11 @@ class Cell {
   }
 };
 
-class Cursor {
-  type: CursorMode;
-  pos: RingPosition;
-  focused: boolean;
-
-  constructor() {
-    this.type = 'ring';
-    this.pos = {r: 0, th: 0};
-    this.focused = false;
-  }
-
-  switchType() {
-    if (this.type === 'ring') {
-      this.type = 'row';
-    } else if (this.type === 'row') {
-      this.type = 'ring';
-    }
-  }
-
-  sectionSelected(type: CursorMode, index: number) {
-    if (this.type !== type) { return false; }
-    if (this.type === 'ring') {
-      return index === this.pos.r;
-    } else if (this.type === 'row') {
-      return index === this.pos.th;
-    }
-  }
-
-  cellSelected({th, r}: RingPosition) {
-    if (this.type === 'ring') {
-      return r === this.pos.r;
-    } else if (this.type === 'row') {
-      return th === this.pos.th;
-    }
-  }
-
-  move(reverse: boolean) {
-    if (this.type === 'ring') {
-      this.pos.r = (this.pos.r + 1) % NUM_RINGS;
-      return;
-    }
-    let d = reverse ? 1 : -1;
-    this.pos.th = (this.pos.th + d + NUM_ANGLES) % (NUM_ANGLES / 2);
-  }
-
-  draw(ctx: Context) {
-    ctx.fillStyle = this.focused ? CURSOR_FOCUSED : CURSOR_UNFOCUSED;
-    if (this.type === 'ring') {
-      let r = this.pos.r;
-      ctx.moveTo(CENTER.x, CENTER.y);
-      ctx.beginPath();
-      ctx.arc(CENTER.x, CENTER.y, R0 + (r+1)*CELL_WIDTH, 0, Math.PI*2, false);
-      ctx.moveTo(CENTER.x, CENTER.y);
-      ctx.arc(CENTER.x, CENTER.y, R0 + r*CELL_WIDTH, 0, Math.PI*2, true);
-      ctx.fill();
-    } else if (this.type === 'row') {
-      let th = this.pos.th;
-      ctx.moveTo(CENTER.x, CENTER.y);
-      ctx.beginPath();
-      filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
-        th*CELL_ANGLE, (th+1)*CELL_ANGLE);
-      ctx.moveTo(CENTER.x, CENTER.y);
-      th = (th + NUM_ANGLES / 2) % NUM_ANGLES;
-      filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
-        th*CELL_ANGLE, (th+1)*CELL_ANGLE);
-      ctx.fill();
-    }
-  }
-}
-
 export class Wheel {
   readonly layers: Layers;
   readonly canvases: Canvases;
   readonly canvas_size: Size;
   readonly wheel: Cell[];
-  cursor: Cursor;
 
   constructor(canvases: Canvases) {
     this.canvases = canvases;
@@ -212,9 +138,9 @@ export class Wheel {
       width: canvases.wheel.width,
       height: canvases.wheel.height,
     };
-    let layers = {};
+    let layers = {} as Layers;
     for (let layer_name in canvases) {
-      let canvas = canvases[layer_name];
+      let canvas = canvases[layer_name as LayerName];
       if (canvas.width !== this.canvas_size.width ||
         canvas.height !== this.canvas_size.height) {
           throw 'Uneven canvas size!';
@@ -222,16 +148,15 @@ export class Wheel {
       if (!canvas.getContext) { throw 'No canvas context!'; }
       let ctx = canvas.getContext('2d');
       ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
-      layers[layer_name] = ctx;
+      layers[layer_name as LayerName] = ctx;
     }
-    this.layers = layers as Layers;
+    this.layers = layers;
     this.wheel = [];
     for (let i = 0; i < NUM_CELLS; ++i) {
       let color = (((i % 2 + Math.floor(i / NUM_ANGLES)) % 2 === 0)
         ? CELL1_FILL : CELL2_FILL);
       this.wheel.push(new Cell(color));
     }
-    this.cursor = new Cursor();
   }
 
   // Rotate ring `r` once.
@@ -297,10 +222,9 @@ export class Wheel {
   draw() {
     this.drawWheel();
     this.drawBackground();
-    this.drawCursor();
   }
 
-  getLayer(layer_name: LayerName = 'wheel') {
+  getLayer(layer_name: LayerName = 'wheel'): Context | undefined {
     return this.layers[layer_name];
   }
 
@@ -360,14 +284,6 @@ export class Wheel {
     }
   }
 
-  drawCursor() {
-    let ctx = this.getLayer('cursor');
-    ctx.clearRect(0, 0, FRAME.width, FRAME.height);
-    if (this.cursor) {
-      this.cursor.draw(ctx);
-    }
-  }
-
   drawBackground() {
     let ctx = this.getLayer('overlay');
     // Inner circle.
@@ -396,7 +312,7 @@ export class Wheel {
   }
 
   // FIXME: Returns the wrong result when CSS scaled.
-  xyToWheelPos(pos: Point) {
+  xyToWheelPos(pos: Point): RingPosition {
     let x = pos.x / this.canvas_size.width * FRAME.width - CENTER.x;
     let y = pos.y / this.canvas_size.height * FRAME.height - CENTER.y;
     let th = Math.floor(Math.atan2(-y, -x) /
@@ -406,5 +322,13 @@ export class Wheel {
     if (r < 0 || r >= NUM_RINGS) { return null; }
     if (th < 0 || th >= NUM_ANGLES) { throw 'Theta out of range??'; }
     return {th, r};
+  }
+
+  onMouseDown(event: MouseEvent) {
+    let pos = this.xyToWheelPos({x: event.offsetX, y: event.offsetY});
+    if (!pos) { return; }
+    console.log(pos);
+    this.clickCell(pos);
+    this.drawCellTop(pos);
   }
 };

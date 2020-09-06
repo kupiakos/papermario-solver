@@ -3,8 +3,7 @@
     "target": "es5",
     "module": "commonjs",
     "outDir": "dist",
-    // TODO: get this enabled for good strict fun
-    // "noImplicitAny": true,
+    "noImplicitAny": true,
     "noUnusedLocals": true,
     "sourceMap": true
   }
