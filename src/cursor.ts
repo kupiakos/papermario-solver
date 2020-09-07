@@ -1,6 +1,6 @@
 import {
   RingPosition, Wheel, filledArc,
-  R0, CENTER, FRAME,
+  R0, FRAME,
   NUM_RINGS, NUM_ANGLES,
   CELL_WIDTH, CELL_ANGLE} from './wheel';
 import { Animation } from './animation'
@@ -82,14 +82,16 @@ export class Cursor {
   draw(anim_amount: number = 0,
       ctx: CanvasRenderingContext2D = this.wheel.getLayer('cursor')) {
     // console.log('draw cursor', anim_amount);
-    ctx.clearRect(0, 0, FRAME.width, FRAME.height);
+    ctx.clearRect(
+      -FRAME.width / 2, -FRAME.height / 2,
+      FRAME.width * 1.5, FRAME.height * 1.5);
     ctx.fillStyle = this.focused ? CURSOR_FOCUSED : CURSOR_UNFOCUSED;
     if (this.type === 'ring') {
       let r = this.pos.r + anim_amount;
-      ctx.moveTo(CENTER.x, CENTER.y);
+      ctx.moveTo(0, 0);
       ctx.beginPath();
       filledArc(ctx,
-        CENTER.x, CENTER.y,
+        0, 0,
         R0 + (r)*CELL_WIDTH,
         R0 + (r+1)*CELL_WIDTH,
         0, Math.PI * 2);
@@ -97,10 +99,10 @@ export class Cursor {
       if (r + 1 >= NUM_RINGS) {
         r -= NUM_RINGS;
         // Note: only supports "forward" movement.
-        ctx.moveTo(CENTER.x, CENTER.y);
+        ctx.moveTo(0, 0);
         ctx.beginPath();
         filledArc(ctx,
-          CENTER.x, CENTER.y,
+          0, 0,
           R0 + (r)*CELL_WIDTH,
           R0 + (r+1)*CELL_WIDTH,
           0, Math.PI * 2);
@@ -108,13 +110,13 @@ export class Cursor {
       }
     } else if (this.type === 'row') {
       let th = this.pos.th;
-      ctx.moveTo(CENTER.x, CENTER.y);
+      ctx.moveTo(0, 0);
       ctx.beginPath();
-      filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
+      filledArc(ctx, 0, 0, R0, R0 + CELL_WIDTH*NUM_RINGS,
         (th-anim_amount)*CELL_ANGLE, (th+1-anim_amount)*CELL_ANGLE);
-      ctx.moveTo(CENTER.x, CENTER.y);
+      ctx.moveTo(0, 0);
       th = (th + NUM_ANGLES / 2) % NUM_ANGLES;
-      filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
+      filledArc(ctx, 0, 0, R0, R0 + CELL_WIDTH*NUM_RINGS,
         (th-anim_amount)*CELL_ANGLE, (th+1-anim_amount)*CELL_ANGLE);
       ctx.fill();
     }

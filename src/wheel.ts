@@ -24,7 +24,6 @@ export interface RingPosition {
   th: number;
 }
 
-export const CENTER = {x: 80, y: 80};
 export const R0 = 25;
 export const CELL_WIDTH = 10;
 
@@ -35,8 +34,8 @@ export const CELL_ANGLE = 2*Math.PI / NUM_ANGLES;
 export const OUTSIDE_WIDTH = 15;
 
 export const FRAME: Size = {
-  width: CENTER.x + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
-  height: CENTER.y + R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH,
+  width: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
+  height: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
 };
 
 const CELL1_FILL = '#ada786';
@@ -55,8 +54,8 @@ const DRAW_CELL_NUMBERS = false;
 
 function cellCenter({th, r}: RingPosition) {
   return {
-      x: CENTER.x + (R0 + (r+0.5) * CELL_WIDTH) * Math.cos((th+.5) * CELL_ANGLE),
-      y: CENTER.y + (R0 + (r+0.5) * CELL_WIDTH) * Math.sin((th+.5) * CELL_ANGLE),
+      x: (R0 + (r+0.5) * CELL_WIDTH) * Math.cos((th+.5) * CELL_ANGLE),
+      y: (R0 + (r+0.5) * CELL_WIDTH) * Math.sin((th+.5) * CELL_ANGLE),
   };
 }
 
@@ -92,10 +91,10 @@ class Cell {
     ctx.strokeStyle = 'black';
     ctx.fillStyle = this.fill;
     ctx.lineWidth = 0.5;
-    ctx.moveTo(CENTER.x, CENTER.y);
+    ctx.moveTo(0, 0);
     ctx.beginPath();
     filledArc(ctx,
-      CENTER.x, CENTER.y,
+      0, 0,
       R0 + r * CELL_WIDTH, R0 + (r+1) * CELL_WIDTH,
       th*CELL_ANGLE, (th+1)*CELL_ANGLE);
     innerStroke(ctx);
@@ -147,6 +146,7 @@ export class Wheel {
       }
       if (!canvas.getContext) { throw 'No canvas context!'; }
       let ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
       layers[layer_name as LayerName] = ctx;
     }
@@ -236,10 +236,10 @@ export class Wheel {
     enemies.save();
     enemies.fillStyle = 'black';
     enemies.globalCompositeOperation = 'destination-out';
-    enemies.moveTo(CENTER.x, CENTER.y);
+    enemies.moveTo(0, 0);
     enemies.beginPath();
     filledArc(enemies,
-      CENTER.x, CENTER.y,
+      0, 0,
       R0 + r*CELL_WIDTH, R0 + (r+1)*CELL_WIDTH,
       0, Math.PI * 2);
     enemies.fill();
@@ -260,9 +260,9 @@ export class Wheel {
     enemies.save();
     enemies.fillStyle = 'black';
     enemies.globalCompositeOperation = 'destination-out';
-    enemies.moveTo(CENTER.x, CENTER.y);
+    enemies.moveTo(0, 0);
     enemies.beginPath();
-    filledArc(enemies, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
+    filledArc(enemies, 0, 0, R0, R0 + CELL_WIDTH*NUM_RINGS,
       th*CELL_ANGLE, (th+1)*CELL_ANGLE);
     enemies.fill();
     enemies.restore();
@@ -289,33 +289,33 @@ export class Wheel {
     let ctx = this.getLayer('overlay');
     // Inner circle.
     ctx.fillStyle = INSIDE_BORDER;
-    ctx.moveTo(CENTER.x, CENTER.y);
+    ctx.moveTo(0, 0);
     ctx.beginPath();
-    ctx.arc(CENTER.x, CENTER.y, R0, 0, Math.PI*2);
+    ctx.arc(0, 0, R0, 0, Math.PI*2);
     ctx.fill();
     ctx.fillStyle = INSIDE_FILL;
-    ctx.moveTo(CENTER.x, CENTER.y);
+    ctx.moveTo(0, 0);
     ctx.beginPath();
-    ctx.arc(CENTER.x, CENTER.y, R0 - 2, 0, Math.PI*2);
+    ctx.arc(0, 0, R0 - 2, 0, Math.PI*2);
     ctx.fill();
 
     // Outside circle.
     ctx.lineWidth = 2;
     ctx.fillStyle = OUTSIDE_FILL;
     ctx.strokeStyle = OUTSIDE_BORDER;
-    ctx.moveTo(CENTER.x, CENTER.y);
+    ctx.moveTo(0, 0);
     ctx.beginPath();
     const OUTSIDE_R0 = R0 + NUM_RINGS * CELL_WIDTH;
-    ctx.arc(CENTER.x, CENTER.y, OUTSIDE_R0 + OUTSIDE_WIDTH, 0, Math.PI*2, false);
-    ctx.moveTo(CENTER.x, CENTER.y);
-    ctx.arc(CENTER.x, CENTER.y, OUTSIDE_R0, 0, Math.PI*2, true);
+    ctx.arc(0, 0, OUTSIDE_R0 + OUTSIDE_WIDTH, 0, Math.PI*2, false);
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, OUTSIDE_R0, 0, Math.PI*2, true);
     innerStroke(ctx);
   }
 
   // FIXME: Returns the wrong result when CSS scaled.
   xyToWheelPos(pos: Point): RingPosition {
-    let x = pos.x / this.canvas_size.width * FRAME.width - CENTER.x;
-    let y = pos.y / this.canvas_size.height * FRAME.height - CENTER.y;
+    let x = pos.x / this.canvas_size.width * FRAME.width - FRAME.width / 2;
+    let y = pos.y / this.canvas_size.height * FRAME.height - FRAME.height / 2;
     let th = Math.floor(Math.atan2(-y, -x) /
       (2*Math.PI) * NUM_ANGLES + NUM_ANGLES/2);
     let r = Math.floor((Math.sqrt(x*x + y*y) - R0)
