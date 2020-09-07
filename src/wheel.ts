@@ -132,20 +132,19 @@ class Cell {
 export class Wheel {
   readonly layers: Layers;
   readonly canvases: Canvases;
-  readonly canvas_size: Size;
   readonly wheel: Cell[];
 
   constructor(canvases: Canvases) {
     this.canvases = canvases;
-    this.canvas_size = {
+    let canvas_size = {
       width: canvases.wheel.width,
       height: canvases.wheel.height,
     };
     let layers = {} as Layers;
     for (let layer_name in canvases) {
       let canvas = canvases[layer_name as LayerName];
-      if (canvas.width !== this.canvas_size.width ||
-        canvas.height !== this.canvas_size.height) {
+      if (canvas.width !== canvas_size.width ||
+        canvas.height !== canvas_size.height) {
           throw 'Uneven canvas size!';
       }
       if (!canvas.getContext) { throw 'No canvas context!'; }
@@ -316,14 +315,17 @@ export class Wheel {
     innerStroke(ctx);
   }
 
-  // FIXME: Returns the wrong result when CSS scaled.
-  xyToWheelPos(pos: Point): RingPosition {
-    let x = pos.x / this.canvas_size.width * FRAME.width - FRAME.width / 2;
-    let y = pos.y / this.canvas_size.height * FRAME.height - FRAME.height / 2;
+  xyToWheelPos(pos: Point): RingPosition | null {
+    let style = window.getComputedStyle(this.canvases.wheel);
+    let canvas_size = {
+      width: parseInt(style.width, 10),
+      height: parseInt(style.height, 10),
+    };
+    let x = pos.x / canvas_size.width * FRAME.width - FRAME.width / 2;
+    let y = pos.y / canvas_size.height * FRAME.height - FRAME.height / 2;
     let th = Math.floor(Math.atan2(-y, -x) /
       (2*Math.PI) * NUM_ANGLES + NUM_ANGLES/2);
-    let r = Math.floor((Math.sqrt(x*x + y*y) - R0)
-      / CELL_WIDTH);
+    let r = Math.floor((Math.sqrt(x*x + y*y) - R0) / CELL_WIDTH);
     if (r < 0 || r >= NUM_RINGS) { return null; }
     if (th < 0 || th >= NUM_ANGLES) { throw 'Theta out of range??'; }
     return {th, r};
