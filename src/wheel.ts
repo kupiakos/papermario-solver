@@ -24,14 +24,14 @@ export interface RingPosition {
   th: number;
 }
 
-export const R0 = 25;
-export const CELL_WIDTH = 10;
+export const R0 = 77;
+export const CELL_WIDTH = 32;
 
 export const NUM_RINGS = 4;
 export const NUM_ANGLES = 12;
 export const NUM_CELLS = NUM_RINGS * NUM_ANGLES;
 export const CELL_ANGLE = 2*Math.PI / NUM_ANGLES;
-export const OUTSIDE_WIDTH = 15;
+export const OUTSIDE_WIDTH = 45;
 
 export const FRAME: Size = {
   width: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
@@ -40,15 +40,19 @@ export const FRAME: Size = {
 
 const CELL1_FILL = '#ada786';
 const CELL2_FILL = '#8f8a6d';
+const CELL_BORDER = 'black';
+const CELL_BORDER_WIDTH = 0.8;
 
 const INSIDE_BORDER = '#bf7e56';
 const INSIDE_FILL = '#a64250';
+const INSIDE_BORDER_WIDTH = 6;
 
 const OUTSIDE_FILL = '#5AE67C';
 const OUTSIDE_BORDER = '#99851A';
+const OUTSIDE_BORDER_WIDTH = 6;
 
 const ENEMY_COLOR = '#ee0';
-const ENEMY_RADIUS = 3;
+const ENEMY_RADIUS = 9;
 
 const DRAW_CELL_NUMBERS = false;
 
@@ -88,9 +92,9 @@ class Cell {
   }
 
   drawBase(ctx: Context, {th, r}: RingPosition) {
-    ctx.strokeStyle = 'black';
+    ctx.strokeStyle = CELL_BORDER;
     ctx.fillStyle = this.fill;
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = CELL_BORDER_WIDTH;
     ctx.moveTo(0, 0);
     ctx.beginPath();
     filledArc(ctx,
@@ -296,11 +300,11 @@ export class Wheel {
     ctx.fillStyle = INSIDE_FILL;
     ctx.moveTo(0, 0);
     ctx.beginPath();
-    ctx.arc(0, 0, R0 - 2, 0, Math.PI*2);
+    ctx.arc(0, 0, R0 - INSIDE_BORDER_WIDTH, 0, Math.PI*2);
     ctx.fill();
 
     // Outside circle.
-    ctx.lineWidth = 2;
+    ctx.lineWidth = OUTSIDE_BORDER_WIDTH;
     ctx.fillStyle = OUTSIDE_FILL;
     ctx.strokeStyle = OUTSIDE_BORDER;
     ctx.moveTo(0, 0);
