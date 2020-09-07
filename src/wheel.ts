@@ -238,9 +238,10 @@ export class Wheel {
     enemies.globalCompositeOperation = 'destination-out';
     enemies.moveTo(CENTER.x, CENTER.y);
     enemies.beginPath();
-    enemies.arc(CENTER.x, CENTER.y, R0 + (r+1)*CELL_WIDTH, 0, Math.PI*2, false);
-    enemies.moveTo(CENTER.x, CENTER.y);
-    enemies.arc(CENTER.x, CENTER.y, R0 + r*CELL_WIDTH, 0, Math.PI*2, true);
+    filledArc(enemies,
+      CENTER.x, CENTER.y,
+      R0 + r*CELL_WIDTH, R0 + (r+1)*CELL_WIDTH,
+      0, Math.PI * 2);
     enemies.fill();
     enemies.restore();
 

@@ -3,15 +3,21 @@ import {
   R0, CENTER, FRAME,
   NUM_RINGS, NUM_ANGLES,
   CELL_WIDTH, CELL_ANGLE} from './wheel';
+import { Animation } from './animation'
 
 type CursorMode = 'ring' | 'row';
 const CURSOR_UNFOCUSED = 'rgba(186, 210, 247, 0.5)';
 const CURSOR_FOCUSED = 'rgba(82, 148, 250, 0.8)';
 
+const CURSOR_RING_MOVE_ANIMATION_TIME = 0.05;
+const CURSOR_SHIFT_MOVE_ANIMATION_TIME = 0.1;
+
 export class Cursor {
   type: CursorMode;
   pos: RingPosition;
   focused: boolean;
+
+  private animation?: Animation;
   private readonly wheel: Wheel;
 
   constructor(wheel: Wheel) {
@@ -46,36 +52,70 @@ export class Cursor {
     }
   }
 
-  move(reverse: boolean) {
-    if (this.type === 'ring') {
-      this.pos.r = (this.pos.r + 1) % NUM_RINGS;
+  move(reverse: boolean, animate: boolean = true) {
+    if (animate) {
+      if (this.animation && this.animation.isPlaying()) { return; }
+      this.animation = new Animation(
+        this.type === 'ring' ?
+        CURSOR_RING_MOVE_ANIMATION_TIME :
+        CURSOR_SHIFT_MOVE_ANIMATION_TIME,
+        amount => {
+          amount = amount;
+          if (this.type === 'row' && reverse) { amount = -amount; }
+          this.draw(amount);
+        }, () => {
+          this.move(reverse, false);
+          this.draw();
+        });
+      this.animation.play();
       return;
     }
-    let d = reverse ? 1 : -1;
-    this.pos.th = (this.pos.th + d + NUM_ANGLES) % (NUM_ANGLES / 2);
+    if (this.type === 'ring') {
+      this.pos = {...this.pos, r: (this.pos.r + 1) % NUM_RINGS};
+    } else {
+      let d = reverse ? 1 : -1;
+      this.pos = {...this.pos,
+        th: (this.pos.th + d + NUM_ANGLES) % (NUM_ANGLES / 2)};
+    }
   }
 
-  draw(ctx: CanvasRenderingContext2D = this.wheel.getLayer('cursor')) {
+  draw(anim_amount: number = 0,
+      ctx: CanvasRenderingContext2D = this.wheel.getLayer('cursor')) {
+    // console.log('draw cursor', anim_amount);
     ctx.clearRect(0, 0, FRAME.width, FRAME.height);
     ctx.fillStyle = this.focused ? CURSOR_FOCUSED : CURSOR_UNFOCUSED;
     if (this.type === 'ring') {
-      let r = this.pos.r;
+      let r = this.pos.r + anim_amount;
       ctx.moveTo(CENTER.x, CENTER.y);
       ctx.beginPath();
-      ctx.arc(CENTER.x, CENTER.y, R0 + (r+1)*CELL_WIDTH, 0, Math.PI*2, false);
-      ctx.moveTo(CENTER.x, CENTER.y);
-      ctx.arc(CENTER.x, CENTER.y, R0 + r*CELL_WIDTH, 0, Math.PI*2, true);
+      filledArc(ctx,
+        CENTER.x, CENTER.y,
+        R0 + (r)*CELL_WIDTH,
+        R0 + (r+1)*CELL_WIDTH,
+        0, Math.PI * 2);
       ctx.fill();
+      if (r + 1 >= NUM_RINGS) {
+        r -= NUM_RINGS;
+        // Note: only supports "forward" movement.
+        ctx.moveTo(CENTER.x, CENTER.y);
+        ctx.beginPath();
+        filledArc(ctx,
+          CENTER.x, CENTER.y,
+          R0 + (r)*CELL_WIDTH,
+          R0 + (r+1)*CELL_WIDTH,
+          0, Math.PI * 2);
+        ctx.fill();
+      }
     } else if (this.type === 'row') {
       let th = this.pos.th;
       ctx.moveTo(CENTER.x, CENTER.y);
       ctx.beginPath();
       filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
-        th*CELL_ANGLE, (th+1)*CELL_ANGLE);
+        (th-anim_amount)*CELL_ANGLE, (th+1-anim_amount)*CELL_ANGLE);
       ctx.moveTo(CENTER.x, CENTER.y);
       th = (th + NUM_ANGLES / 2) % NUM_ANGLES;
       filledArc(ctx, CENTER.x, CENTER.y, R0, R0 + CELL_WIDTH*NUM_RINGS,
-        th*CELL_ANGLE, (th+1)*CELL_ANGLE);
+        (th-anim_amount)*CELL_ANGLE, (th+1-anim_amount)*CELL_ANGLE);
       ctx.fill();
     }
   }
