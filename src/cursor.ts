@@ -16,8 +16,9 @@ export class Cursor {
   type: CursorMode;
   pos: RingPosition;
   focused: boolean;
-
-  private animation?: Animation;
+  
+  private current_movement?: { type: CursorMode, reverse: boolean };
+  private readonly animation: Animation;
   private readonly wheel: Wheel;
 
   constructor(wheel: Wheel) {
@@ -25,6 +26,19 @@ export class Cursor {
     this.pos = {r: 0, th: 0};
     this.focused = false;
     this.wheel = wheel;
+    this.animation = new Animation(
+      CURSOR_RING_MOVE_ANIMATION_TIME,
+      amount => {
+        if (!this.current_movement) { throw 'Last movement undefined?'; }
+        let {type, reverse} = this.current_movement;
+        amount = amount;
+        if (type === 'row' && reverse) { amount = -amount; }
+        this.draw(amount);
+      }, () => {
+        if (!this.current_movement) { throw 'Last movement undefined?'; }
+        this.move(this.current_movement.reverse, false);
+        this.draw();
+    });
   }
 
   switchType() {
@@ -54,20 +68,11 @@ export class Cursor {
 
   move(reverse: boolean, animate: boolean = true) {
     if (animate) {
-      if (this.animation && this.animation.isPlaying()) { return; }
-      this.animation = new Animation(
-        this.type === 'ring' ?
+      if (this.animation.isPlaying()) { return; }
+      this.current_movement = {reverse, type: this.type};
+      this.animation.play(this.type === 'ring' ?
         CURSOR_RING_MOVE_ANIMATION_TIME :
-        CURSOR_SHIFT_MOVE_ANIMATION_TIME,
-        amount => {
-          amount = amount;
-          if (this.type === 'row' && reverse) { amount = -amount; }
-          this.draw(amount);
-        }, () => {
-          this.move(reverse, false);
-          this.draw();
-        });
-      this.animation.play();
+        CURSOR_SHIFT_MOVE_ANIMATION_TIME);
       return;
     }
     if (this.type === 'ring') {
