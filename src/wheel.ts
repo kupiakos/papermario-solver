@@ -315,24 +315,34 @@ export class Wheel {
     innerStroke(ctx);
   }
 
-  xyToWheelPos(pos: Point): RingPosition | null {
-    let style = window.getComputedStyle(this.canvases.wheel);
-    let canvas_size = {
+  // Converts from { x: canvas.offsetX, y: canvas.offsetY } to
+  // the equivalent position in the drawing frame.
+  offsetToFramePos(offsetPos: Point): Point {
+    const style = window.getComputedStyle(this.canvases.wheel);
+    const canvas_size = {
       width: parseInt(style.width, 10),
       height: parseInt(style.height, 10),
     };
-    let x = pos.x / canvas_size.width * FRAME.width - FRAME.width / 2;
-    let y = pos.y / canvas_size.height * FRAME.height - FRAME.height / 2;
-    let th = Math.floor(Math.atan2(-y, -x) /
+    return {
+      x: offsetPos.x / canvas_size.width * FRAME.width - FRAME.width / 2,
+      y: offsetPos.y / canvas_size.height * FRAME.height - FRAME.height / 2,
+    };
+  }
+
+  // Converts from { x: canvas.offsetX, y: canvas.offsetY } to
+  // the equivalent position on the wheel, or null if there is none.
+  offsetToWheelPos(offsetPos: Point): RingPosition | null {
+    const {x, y} = this.offsetToFramePos(offsetPos);
+    const th = Math.floor(Math.atan2(-y, -x) /
       (2*Math.PI) * NUM_ANGLES + NUM_ANGLES/2);
-    let r = Math.floor((Math.sqrt(x*x + y*y) - R0) / CELL_WIDTH);
+    const r = Math.floor((Math.sqrt(x*x + y*y) - R0) / CELL_WIDTH);
     if (r < 0 || r >= NUM_RINGS) { return null; }
     if (th < 0 || th >= NUM_ANGLES) { throw 'Theta out of range??'; }
     return {th, r};
   }
 
   onMouseDown(event: MouseEvent) {
-    let pos = this.xyToWheelPos({x: event.offsetX, y: event.offsetY});
+    const pos = this.offsetToWheelPos({x: event.offsetX, y: event.offsetY});
     if (!pos) { return; }
     console.log(pos);
     this.clickCell(pos);
