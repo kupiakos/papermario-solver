@@ -1,7 +1,7 @@
 import { Animation } from './animation';
 
 type Context = CanvasRenderingContext2D;
-type LayerName = 'overlay' | 'enemy' | 'cursor' | 'wheel';
+type LayerName = 'overlay' | 'enemy' | 'cursor' | 'ring';
 
 type Layers = {
   [name in LayerName]: Context;
@@ -31,8 +31,8 @@ export type RingRow = { type: 'row', th: number };
 export type RingGroupType = 'ring' | 'row';
 export type RingGroup = RingSubring | RingRow;
 
-export type RingRotate = RingSubring & { clockwise: boolean };
-export type RingShift = RingRow & { outward: boolean };
+export type RingRotate = RingSubring & { clockwise: boolean, amount: number };
+export type RingShift = RingRow & { outward: boolean, amount: number };
 export type RingMovement = RingRotate | RingShift;
 
 export const R0 = 77;
@@ -143,18 +143,18 @@ class Cell {
   }
 };
 
-export class Wheel {
+export class Ring {
   private readonly layers: Layers;
   private readonly canvases: Canvases;
-  private readonly wheel: Cell[];
+  private readonly ring: Cell[];
   private current_movement: RingMovement | null;
   private animation: Animation;
 
   constructor(canvases: Canvases) {
     this.canvases = canvases;
     let canvas_size = {
-      width: canvases.wheel.width,
-      height: canvases.wheel.height,
+      width: canvases.ring.width,
+      height: canvases.ring.height,
     };
     let layers = {} as Layers;
     for (let layer_name in canvases) {
@@ -171,11 +171,11 @@ export class Wheel {
       layers[layer_name as LayerName] = ctx;
     }
     this.layers = layers;
-    this.wheel = [];
+    this.ring = [];
     for (let i = 0; i < NUM_CELLS; ++i) {
       let color = (((i % 2 + Math.floor(i / NUM_ANGLES)) % 2 === 0)
         ? CELL1_FILL : CELL2_FILL);
-      this.wheel.push(new Cell(color));
+      this.ring.push(new Cell(color));
     }
     this.animation = new Animation(
       RING_ROTATE_ANIMATION_TIME,
@@ -192,13 +192,18 @@ export class Wheel {
       () => {
         if (!this.current_movement) { throw new ReferenceError('Last movement null?'); }
         this.move(this.current_movement, false);
-        this.current_movement = null;
+        if (--this.current_movement.amount > 0) {
+          this.animation.play();
+        } else {
+          this.current_movement = null;
+        }
       }
     );
     this.current_movement = null;
   }
 
   move(m: RingMovement, animate: boolean = true) {
+    if (m.amount < 1) { throw new RangeError(`move amount ${m.amount} < 1`); }
     if (animate) {
       if (this.animation.isPlaying()) { return; }
       this.current_movement = m;
@@ -206,6 +211,8 @@ export class Wheel {
         this.current_movement.type === 'ring' ?
         RING_ROTATE_ANIMATION_TIME : RING_SHIFT_ANIMATION_TIME);
       return;
+    } else if (m.amount > 1) {
+      this.move({...m, amount: m.amount - 1}, false);
     }
     if (m.type === 'ring') {
       this.rotateRing(m.r, m.clockwise);
@@ -220,7 +227,7 @@ export class Wheel {
     let start = r*NUM_ANGLES;
     let step = 1;
     let end = (r+1)*NUM_ANGLES;
-    let arr = this.wheel;
+    let arr = this.ring;
     if (clockwise) {
       step = -step;
       [start, end] = [end + step, start + step];
@@ -244,7 +251,7 @@ export class Wheel {
       start += step / 2;
       end += step / 2;
     }
-    let arr = this.wheel;
+    let arr = this.ring;
     if ((end - start) % step !== 0) { throw new RangeError('wtf'); }
     if (NUM_ANGLES % 2 !== 0) { throw new RangeError('NUM_ANGLES not even!'); }
     let i = start;
@@ -271,15 +278,15 @@ export class Wheel {
     if (th < 0 || th >= NUM_ANGLES || r < 0 || r >= NUM_RINGS) {
       throw new RangeError(`Cell index out of range: {th: ${th}, r: ${r}}}`);
     }
-    return this.wheel[th % NUM_ANGLES + r * NUM_ANGLES];
+    return this.ring[th % NUM_ANGLES + r * NUM_ANGLES];
   }
 
   draw() {
-    this.drawWheel();
+    this.drawRing();
     this.drawBackground();
   }
 
-  getLayer(layer_name: LayerName = 'wheel'): Context {
+  getLayer(layer_name: LayerName = 'ring'): Context {
     const layer = this.layers[layer_name];
     if (layer === undefined) {
       throw new ReferenceError(`No layer named ${layer_name}!`);
@@ -289,7 +296,7 @@ export class Wheel {
 
   drawGroup(group: RingGroup, anim_amount: number = 0, both: boolean = true) {
     if (group.type === 'ring') {
-      this.drawRing(group.r, anim_amount);
+      this.drawSubring(group.r, anim_amount);
     } else {
       this.drawRow(group.th, anim_amount);
       if (both) {
@@ -298,7 +305,7 @@ export class Wheel {
     }
   }
 
-  drawRing(r: number, anim_amount: number = 0) {
+  drawSubring(r: number, anim_amount: number = 0) {
     let base = this.getLayer();
     let enemies = this.getLayer('enemy');
 
@@ -364,10 +371,10 @@ export class Wheel {
       this.getLayer('enemy'), pos);
   }
 
-  drawWheel() {
-    // Wheel cells
+  drawRing() {
+    // Ring cells
     for (let r = 0; r < NUM_RINGS; ++r) {
-      this.drawRing(r);
+      this.drawSubring(r);
     }
   }
 
@@ -401,7 +408,7 @@ export class Wheel {
   // Converts from { x: canvas.offsetX, y: canvas.offsetY } to
   // the equivalent position in the drawing frame.
   offsetToFramePos(offsetPos: Point): Point {
-    const style = window.getComputedStyle(this.canvases.wheel);
+    const style = window.getComputedStyle(this.canvases.ring);
     const canvas_size = {
       width: parseInt(style.width, 10),
       height: parseInt(style.height, 10),
@@ -413,8 +420,8 @@ export class Wheel {
   }
 
   // Converts from { x: canvas.offsetX, y: canvas.offsetY } to
-  // the equivalent position on the wheel, or null if there is none.
-  offsetToWheelPos(offsetPos: Point): RingPosition | null {
+  // the equivalent position on the ring, or null if there is none.
+  offsetToRingPos(offsetPos: Point): RingPosition | null {
     const {x, y} = this.offsetToFramePos(offsetPos);
     const th = Math.floor(Math.atan2(-y, -x) /
       (2*Math.PI) * NUM_ANGLES + NUM_ANGLES/2);
@@ -425,7 +432,7 @@ export class Wheel {
   }
 
   onMouseDown(event: MouseEvent) {
-    const pos = this.offsetToWheelPos({x: event.offsetX, y: event.offsetY});
+    const pos = this.offsetToRingPos({x: event.offsetX, y: event.offsetY});
     if (!pos) { return; }
     console.log(pos);
     this.clickCell(pos);

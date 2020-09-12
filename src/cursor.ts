@@ -1,6 +1,6 @@
 import {
-  RingGroupType, RingMovement, RingPosition, Wheel, filledArc, R0, FRAME,
-  NUM_RINGS, NUM_ANGLES, CELL_WIDTH, CELL_ANGLE} from './wheel';
+  RingGroupType, RingMovement, RingPosition, Ring, filledArc, R0, FRAME,
+  NUM_RINGS, NUM_ANGLES, CELL_WIDTH, CELL_ANGLE} from './ring';
 import { Animation } from './animation'
 
 type CursorMode = RingGroupType;
@@ -18,13 +18,13 @@ export class Cursor {
   
   private current_movement: CursorMovement | null;
   private readonly animation: Animation;
-  private readonly wheel: Wheel;
+  private readonly ring: Ring;
 
-  constructor(wheel: Wheel) {
+  constructor(ring: Ring) {
     this.type = 'ring';
     this.pos = {r: 0, th: 0};
     this.focused = false;
-    this.wheel = wheel;
+    this.ring = ring;
     this.current_movement = null;
     this.animation = new Animation(
       CURSOR_RING_MOVE_ANIMATION_TIME,
@@ -95,7 +95,7 @@ export class Cursor {
   }
 
   draw(anim_amount: number = 0,
-      ctx: CanvasRenderingContext2D = this.wheel.getLayer('cursor')) {
+      ctx: CanvasRenderingContext2D = this.ring.getLayer('cursor')) {
     ctx.clearRect(
       -FRAME.width / 2, -FRAME.height / 2,
       FRAME.width * 1.5, FRAME.height * 1.5);
@@ -162,6 +162,7 @@ export class Cursor {
             type: 'ring',
             clockwise: reverse,
             r: this.pos.r,
+            amount: 1,
           };
         } else {
           let th = this.pos.th;
@@ -176,11 +177,12 @@ export class Cursor {
             type: 'row',
             outward: reverse,
             th,
+            amount: 1,
           };
-          // this.wheel.drawRow((th + NUM_ANGLES / 2) % NUM_ANGLES);
+          // this.ring.drawRow((th + NUM_ANGLES / 2) % NUM_ANGLES);
         }
-        this.wheel.move(movement, true);
-        this.wheel.drawGroup(movement);
+        this.ring.move(movement, true);
+        this.ring.drawGroup(movement);
       } else {
         this.move(reverse);
         this.draw();
