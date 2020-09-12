@@ -16,7 +16,7 @@ export class Cursor {
   pos: RingPosition;
   focused: boolean;
   
-  private current_movement?: CursorMovement;
+  private current_movement: CursorMovement | null;
   private readonly animation: Animation;
   private readonly wheel: Wheel;
 

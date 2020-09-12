@@ -147,7 +147,7 @@ export class Wheel {
   private readonly layers: Layers;
   private readonly canvases: Canvases;
   private readonly wheel: Cell[];
-  private current_movement?: RingMovement;
+  private current_movement: RingMovement | null;
   private animation: Animation;
 
   constructor(canvases: Canvases) {
@@ -165,6 +165,7 @@ export class Wheel {
       }
       if (!canvas.getContext) { throw Error('No canvas context!'); }
       let ctx = canvas.getContext('2d');
+      if (ctx === null) { throw Error('canvas.getContext null'); }
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
       layers[layer_name as LayerName] = ctx;
@@ -278,8 +279,12 @@ export class Wheel {
     this.drawBackground();
   }
 
-  getLayer(layer_name: LayerName = 'wheel'): Context | undefined {
-    return this.layers[layer_name];
+  getLayer(layer_name: LayerName = 'wheel'): Context {
+    const layer = this.layers[layer_name];
+    if (layer === undefined) {
+      throw Error(`No layer named ${layer_name}!`);
+    }
+    return layer;
   }
 
   drawGroup(group: RingGroup, anim_amount: number = 0, both: boolean = true) {

@@ -76,7 +76,7 @@ export class Animation implements Animatable {
 }
 
 export class AnimationManager {
-  private animation_frame_id?: number;
+  private animation_frame_id: number | null;
   private playing: Set<Animatable>;
   private static instance: AnimationManager;
 
