@@ -60,14 +60,16 @@ export class Animation implements Animatable {
   }
 
   drawFrame(t: number): boolean {
-    // console.log('drawFrame', t);
     let amount = (t - this.start) / (this.duration_sec * 1000);
-    this.onframe(Math.min(Math.max(0, amount), 1));
-    if (amount >= 1) {
-      if (this.onfinish) {
-        this.onfinish();
+    try {
+      this.onframe(Math.min(Math.max(0, amount), 1));
+    } finally {
+      if (amount >= 1) {
+        if (this.onfinish) {
+          this.onfinish();
+        }
+        return false;
       }
-      return false;
     }
     return true;
   }
@@ -104,15 +106,21 @@ export class AnimationManager {
   }
 
   private animationFrame(t: number) {
-    for (let a of Array.from(this.playing)) {
-      if (!a.drawFrame.call(a, t)) {
-        this.playing.delete(a);
+    try {
+      for (let a of Array.from(this.playing)) {
+        if (!a.drawFrame.call(a, t)) {
+          this.playing.delete(a);
+        }
       }
-    }
-    this.animation_frame_id = null;
-    if (this.playing.size > 0) {
-      this.animation_frame_id = window.requestAnimationFrame(
-        this.animationFrame.bind(this));
+    } catch (err) {
+      this.playing.clear();
+      throw err;
+    } finally {
+      this.animation_frame_id = null;
+      if (this.playing.size > 0) {
+        this.animation_frame_id = window.requestAnimationFrame(
+          this.animationFrame.bind(this));
+      }
     }
   }
 

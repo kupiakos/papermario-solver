@@ -1,3 +1,5 @@
+import { Animation } from './animation';
+
 type Context = CanvasRenderingContext2D;
 type LayerName = 'overlay' | 'enemy' | 'cursor' | 'wheel';
 
@@ -24,6 +26,15 @@ export interface RingPosition {
   th: number;
 }
 
+export type RingSubring = { type: 'ring', r: number };
+export type RingRow = { type: 'row', th: number };
+export type RingGroupType = 'ring' | 'row';
+export type RingGroup = RingSubring | RingRow;
+
+export type RingRotate = RingSubring & { clockwise: boolean };
+export type RingShift = RingRow & { outward: boolean };
+export type RingMovement = RingRotate | RingShift;
+
 export const R0 = 77;
 export const CELL_WIDTH = 32;
 
@@ -37,6 +48,9 @@ export const FRAME: Size = {
   width: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
   height: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
 };
+
+const RING_ROTATE_ANIMATION_TIME = 0.15;
+const RING_SHIFT_ANIMATION_TIME = 0.3;
 
 const CELL1_FILL = '#ada786';
 const CELL2_FILL = '#8f8a6d';
@@ -130,9 +144,11 @@ class Cell {
 };
 
 export class Wheel {
-  readonly layers: Layers;
-  readonly canvases: Canvases;
-  readonly wheel: Cell[];
+  private readonly layers: Layers;
+  private readonly canvases: Canvases;
+  private readonly wheel: Cell[];
+  private current_movement?: RingMovement;
+  private animation: Animation;
 
   constructor(canvases: Canvases) {
     this.canvases = canvases;
@@ -145,9 +161,9 @@ export class Wheel {
       let canvas = canvases[layer_name as LayerName];
       if (canvas.width !== canvas_size.width ||
         canvas.height !== canvas_size.height) {
-          throw 'Uneven canvas size!';
+          throw Error('Uneven canvas size!');
       }
-      if (!canvas.getContext) { throw 'No canvas context!'; }
+      if (!canvas.getContext) { throw Error('No canvas context!'); }
       let ctx = canvas.getContext('2d');
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
@@ -159,6 +175,41 @@ export class Wheel {
       let color = (((i % 2 + Math.floor(i / NUM_ANGLES)) % 2 === 0)
         ? CELL1_FILL : CELL2_FILL);
       this.wheel.push(new Cell(color));
+    }
+    this.animation = new Animation(
+      RING_ROTATE_ANIMATION_TIME,
+      amount => {
+        if (!this.current_movement) { throw Error('Last movement null?'); }
+        if (this.current_movement.type === 'ring'
+            && !this.current_movement.clockwise ||
+            this.current_movement.type === 'row'
+            && !this.current_movement.outward) {
+          amount = -amount;
+        }
+        this.drawGroup(this.current_movement, amount);
+      },
+      () => {
+        if (!this.current_movement) { throw Error('Last movement null?'); }
+        this.move(this.current_movement, false);
+        this.current_movement = null;
+      }
+    );
+    this.current_movement = null;
+  }
+
+  move(m: RingMovement, animate: boolean = true) {
+    if (animate) {
+      if (this.animation.isPlaying()) { return; }
+      this.current_movement = m;
+      this.animation.play(
+        this.current_movement.type === 'ring' ?
+        RING_ROTATE_ANIMATION_TIME : RING_SHIFT_ANIMATION_TIME);
+      return;
+    }
+    if (m.type === 'ring') {
+      this.rotateRing(m.r, m.clockwise);
+    } else {
+      this.shiftRow(m.th, m.outward);
     }
   }
 
@@ -194,7 +245,7 @@ export class Wheel {
     }
     let arr = this.wheel;
     if ((end - start) % step !== 0) { throw 'wtf'; }
-    if (NUM_ANGLES % 2 !== 0) { throw 'NUM_ANGLES not even!'; }
+    if (NUM_ANGLES % 2 !== 0) { throw Error('NUM_ANGLES not even!'); }
     let i = start;
     let n = 0;
     while (++n < NUM_RINGS * 2) {
@@ -217,7 +268,7 @@ export class Wheel {
 
   getCell({th, r}: RingPosition) {
     if (th < 0 || th >= NUM_ANGLES || r < 0 || r >= NUM_RINGS) {
-      throw 'Cell index out of range: ' + {th, r};
+      throw Error(`Cell index out of range: {th: ${th}, r: ${r}}}`);
     }
     return this.wheel[th % NUM_ANGLES + r * NUM_ANGLES];
   }
@@ -231,7 +282,18 @@ export class Wheel {
     return this.layers[layer_name];
   }
 
-  drawRing(r: number) {
+  drawGroup(group: RingGroup, anim_amount: number = 0, both: boolean = true) {
+    if (group.type === 'ring') {
+      this.drawRing(group.r, anim_amount);
+    } else {
+      this.drawRow(group.th, anim_amount);
+      if (both) {
+        this.drawRow((group.th + NUM_ANGLES / 2) % NUM_ANGLES, -anim_amount);
+      }
+    }
+  }
+
+  drawRing(r: number, anim_amount: number = 0) {
     let base = this.getLayer();
     let enemies = this.getLayer('enemy');
 
@@ -249,13 +311,14 @@ export class Wheel {
     enemies.restore();
 
     for (let th = 0; th < NUM_ANGLES; ++th) {
-      let cell = this.getCell({th, r});
-      cell.drawBase(base, {th, r});
-      cell.drawTop(enemies, {th, r});
+      const cell = this.getCell({th, r});
+      const th_shifted = th + anim_amount;
+      cell.drawBase(base, {th: th_shifted, r});
+      cell.drawTop(enemies, {th: th_shifted, r});
     }
   }
 
-  drawRow(th: number) {
+  drawRow(th: number, anim_amount: number = 0) {
     let base = this.getLayer();
     let enemies = this.getLayer('enemy');
     
@@ -269,16 +332,31 @@ export class Wheel {
       th*CELL_ANGLE, (th+1)*CELL_ANGLE);
     enemies.fill();
     enemies.restore();
-
-    for (let r = 0; r < NUM_RINGS; ++r) {
-      let cell = this.getCell({th, r});
-      cell.drawBase(base, {th, r});
-      cell.drawTop(enemies, {th, r});
+    enemies.save();
+    enemies.clip();
+    try {
+      for (let r = 0; r < NUM_RINGS; ++r) {
+        const cell = this.getCell({th, r});
+        let r_shifted = r + anim_amount;
+        cell.drawBase(base, {th, r: r_shifted});
+        cell.drawTop(enemies, {th, r: r_shifted});
+      }
+      if (anim_amount != 0) {
+        const th_wrapped = (th + NUM_ANGLES / 2) % NUM_ANGLES;
+        const r_wrapped = anim_amount < 0 ? NUM_RINGS - 1 : 0;
+        const r_shifted = (anim_amount < 0 ? NUM_RINGS : -1) + anim_amount;
+        const cell = this.getCell({th: th_wrapped, r: r_wrapped});
+        cell.drawBase(base, {th, r: r_shifted});
+        cell.drawTop(enemies, {th, r: r_shifted});
+      }
+    } finally {
+      enemies.restore();
     }
   }
 
   drawCellTop(pos: RingPosition) {
-    this.getCell(pos).drawTop(this.getLayer('enemy'), pos);
+    this.getCell(pos).drawTop(
+      this.getLayer('enemy'), pos);
   }
 
   drawWheel() {
@@ -337,7 +415,7 @@ export class Wheel {
       (2*Math.PI) * NUM_ANGLES + NUM_ANGLES/2);
     const r = Math.floor((Math.sqrt(x*x + y*y) - R0) / CELL_WIDTH);
     if (r < 0 || r >= NUM_RINGS) { return null; }
-    if (th < 0 || th >= NUM_ANGLES) { throw 'Theta out of range??'; }
+    if (th < 0 || th >= NUM_ANGLES) { throw Error('Theta out of range??'); }
     return {th, r};
   }
 

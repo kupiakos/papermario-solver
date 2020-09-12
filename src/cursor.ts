@@ -1,11 +1,10 @@
 import {
-  RingPosition, Wheel, filledArc,
-  R0, FRAME,
-  NUM_RINGS, NUM_ANGLES,
-  CELL_WIDTH, CELL_ANGLE} from './wheel';
+  RingGroupType, RingMovement, RingPosition, Wheel, filledArc, R0, FRAME,
+  NUM_RINGS, NUM_ANGLES, CELL_WIDTH, CELL_ANGLE} from './wheel';
 import { Animation } from './animation'
 
-type CursorMode = 'ring' | 'row';
+type CursorMode = RingGroupType;
+type CursorMovement = { type: 'ring' } | { type: 'row', clockwise: boolean };
 const CURSOR_UNFOCUSED = 'rgba(186, 210, 247, 0.5)';
 const CURSOR_FOCUSED = 'rgba(82, 148, 250, 0.8)';
 
@@ -17,7 +16,7 @@ export class Cursor {
   pos: RingPosition;
   focused: boolean;
   
-  private current_movement?: { type: CursorMode, reverse: boolean };
+  private current_movement?: CursorMovement;
   private readonly animation: Animation;
   private readonly wheel: Wheel;
 
@@ -26,19 +25,16 @@ export class Cursor {
     this.pos = {r: 0, th: 0};
     this.focused = false;
     this.wheel = wheel;
+    this.current_movement = null;
     this.animation = new Animation(
       CURSOR_RING_MOVE_ANIMATION_TIME,
-      amount => {
+      amount => this.drawAnimationFrame(amount),
+      () => {
         if (!this.current_movement) { throw 'Last movement undefined?'; }
-        let {type, reverse} = this.current_movement;
-        amount = amount;
-        if (type === 'row' && reverse) { amount = -amount; }
-        this.draw(amount);
-      }, () => {
-        if (!this.current_movement) { throw 'Last movement undefined?'; }
-        this.move(this.current_movement.reverse, false);
+        const clockwise = this.current_movement.type === 'ring' || this.current_movement.clockwise;
+        this.move(clockwise, false);
         this.draw();
-    });
+      });
   }
 
   switchType() {
@@ -69,7 +65,7 @@ export class Cursor {
   move(reverse: boolean, animate: boolean = true) {
     if (animate) {
       if (this.animation.isPlaying()) { return; }
-      this.current_movement = {reverse, type: this.type};
+      this.current_movement = {clockwise: reverse, type: this.type};
       this.animation.play(this.type === 'ring' ?
         CURSOR_RING_MOVE_ANIMATION_TIME :
         CURSOR_SHIFT_MOVE_ANIMATION_TIME);
@@ -84,9 +80,16 @@ export class Cursor {
     }
   }
 
+  private drawAnimationFrame(amount: number) {
+    if (!this.current_movement) { throw 'Last movement null?'; }
+    if (this.current_movement.type === 'row' && this.current_movement.clockwise) {
+      amount = -amount;
+    }
+    this.draw(amount);
+  }
+
   draw(anim_amount: number = 0,
       ctx: CanvasRenderingContext2D = this.wheel.getLayer('cursor')) {
-    // console.log('draw cursor', anim_amount);
     ctx.clearRect(
       -FRAME.width / 2, -FRAME.height / 2,
       FRAME.width * 1.5, FRAME.height * 1.5);
@@ -147,10 +150,13 @@ export class Cursor {
         return;
       }
       if (this.focused) {
+        let movement: RingMovement;
         if (this.type === 'ring') {
-          let r = this.pos.r;
-          this.wheel.rotateRing(r, reverse);
-          this.wheel.drawRing(r);
+          movement = {
+            type: 'ring',
+            clockwise: reverse,
+            r: this.pos.r,
+          };
         } else {
           let th = this.pos.th;
           // While actively shifting, the direction depends where you are.
@@ -160,10 +166,15 @@ export class Cursor {
               event.key === 'ArrowRight')) {
             reverse = !reverse;
           }
-          this.wheel.shiftRow(th, reverse);
-          this.wheel.drawRow(th);
-          this.wheel.drawRow((th + NUM_ANGLES / 2) % NUM_ANGLES);
+          movement = {
+            type: 'row',
+            outward: reverse,
+            th,
+          };
+          // this.wheel.drawRow((th + NUM_ANGLES / 2) % NUM_ANGLES);
         }
+        this.wheel.move(movement, true);
+        this.wheel.drawGroup(movement);
       } else {
         this.move(reverse);
         this.draw();

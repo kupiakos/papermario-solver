@@ -3,6 +3,7 @@
     "target": "es5",
     "module": "commonjs",
     "outDir": "dist",
+    // TODO: "strictNullChecks": true,
     "noImplicitAny": true,
     "noUnusedLocals": true,
     "sourceMap": true
