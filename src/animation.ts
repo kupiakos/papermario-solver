@@ -32,7 +32,7 @@ export class Animation implements Animatable {
       onframe: FrameCallback,
       onfinish?: AnimationFinishedCallback) {
     if (duration_sec <= 0) {
-      throw 'duration_sec <= 0';
+      throw new RangeError('duration_sec ≤ 0');
     }
     this.duration_sec = duration_sec;
     this.onframe = onframe;
@@ -45,7 +45,7 @@ export class Animation implements Animatable {
 
   play(duration_sec: number = this.duration_sec): void {
     if (duration_sec <= 0) {
-      throw 'duration_sec <= 0';
+      throw new RangeError('duration_sec ≤ 0');
     }
     this.duration_sec = duration_sec;
     this.start = performance.now();

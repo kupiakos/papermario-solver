@@ -160,12 +160,12 @@ export class Wheel {
     for (let layer_name in canvases) {
       let canvas = canvases[layer_name as LayerName];
       if (canvas.width !== canvas_size.width ||
-        canvas.height !== canvas_size.height) {
-          throw Error('Uneven canvas size!');
+          canvas.height !== canvas_size.height) {
+        throw new RangeError('Uneven canvas size!');
       }
-      if (!canvas.getContext) { throw Error('No canvas context!'); }
+      if (!canvas.getContext) { throw new ReferenceError('No canvas context!'); }
       let ctx = canvas.getContext('2d');
-      if (ctx === null) { throw Error('canvas.getContext null'); }
+      if (ctx === null) { throw new ReferenceError('canvas.getContext null'); }
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
       layers[layer_name as LayerName] = ctx;
@@ -180,7 +180,7 @@ export class Wheel {
     this.animation = new Animation(
       RING_ROTATE_ANIMATION_TIME,
       amount => {
-        if (!this.current_movement) { throw Error('Last movement null?'); }
+        if (!this.current_movement) { throw new ReferenceError('Last movement null?'); }
         if (this.current_movement.type === 'ring'
             && !this.current_movement.clockwise ||
             this.current_movement.type === 'row'
@@ -190,7 +190,7 @@ export class Wheel {
         this.drawGroup(this.current_movement, amount);
       },
       () => {
-        if (!this.current_movement) { throw Error('Last movement null?'); }
+        if (!this.current_movement) { throw new ReferenceError('Last movement null?'); }
         this.move(this.current_movement, false);
         this.current_movement = null;
       }
@@ -245,8 +245,8 @@ export class Wheel {
       end += step / 2;
     }
     let arr = this.wheel;
-    if ((end - start) % step !== 0) { throw 'wtf'; }
-    if (NUM_ANGLES % 2 !== 0) { throw Error('NUM_ANGLES not even!'); }
+    if ((end - start) % step !== 0) { throw new RangeError('wtf'); }
+    if (NUM_ANGLES % 2 !== 0) { throw new RangeError('NUM_ANGLES not even!'); }
     let i = start;
     let n = 0;
     while (++n < NUM_RINGS * 2) {
@@ -269,7 +269,7 @@ export class Wheel {
 
   getCell({th, r}: RingPosition) {
     if (th < 0 || th >= NUM_ANGLES || r < 0 || r >= NUM_RINGS) {
-      throw Error(`Cell index out of range: {th: ${th}, r: ${r}}}`);
+      throw new RangeError(`Cell index out of range: {th: ${th}, r: ${r}}}`);
     }
     return this.wheel[th % NUM_ANGLES + r * NUM_ANGLES];
   }
@@ -282,7 +282,7 @@ export class Wheel {
   getLayer(layer_name: LayerName = 'wheel'): Context {
     const layer = this.layers[layer_name];
     if (layer === undefined) {
-      throw Error(`No layer named ${layer_name}!`);
+      throw new ReferenceError(`No layer named ${layer_name}!`);
     }
     return layer;
   }
@@ -420,7 +420,7 @@ export class Wheel {
       (2*Math.PI) * NUM_ANGLES + NUM_ANGLES/2);
     const r = Math.floor((Math.sqrt(x*x + y*y) - R0) / CELL_WIDTH);
     if (r < 0 || r >= NUM_RINGS) { return null; }
-    if (th < 0 || th >= NUM_ANGLES) { throw Error('Theta out of range??'); }
+    if (th < 0 || th >= NUM_ANGLES) { throw new RangeError('Theta out of range??'); }
     return {th, r};
   }
 

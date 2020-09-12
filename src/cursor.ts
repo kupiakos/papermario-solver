@@ -30,8 +30,11 @@ export class Cursor {
       CURSOR_RING_MOVE_ANIMATION_TIME,
       amount => this.drawAnimationFrame(amount),
       () => {
-        if (!this.current_movement) { throw 'Last movement undefined?'; }
-        const clockwise = this.current_movement.type === 'ring' || this.current_movement.clockwise;
+        if (!this.current_movement) {
+          throw new ReferenceError('Last movement undefined?');
+        }
+        const clockwise = this.current_movement.type === 'ring'
+          || this.current_movement.clockwise;
         this.move(clockwise, false);
         this.draw();
       });
@@ -81,8 +84,11 @@ export class Cursor {
   }
 
   private drawAnimationFrame(amount: number) {
-    if (!this.current_movement) { throw 'Last movement null?'; }
-    if (this.current_movement.type === 'row' && this.current_movement.clockwise) {
+    if (!this.current_movement) {
+      throw new ReferenceError('Last movement null?');
+    }
+    if (this.current_movement.type === 'row'
+        && this.current_movement.clockwise) {
       amount = -amount;
     }
     this.draw(amount);
