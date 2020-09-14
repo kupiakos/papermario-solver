@@ -1,16 +1,15 @@
-
 export interface Animatable {
   // Draws the frame given the current time t.
   // Returns whether to recall this Animatable on the next frame.
   drawFrame(t: number): boolean;
-  
+
   // Is this animation currently playing?
   // More precisely, has the last frame of this animation finished?
   isPlaying(): boolean;
-  
+
   // Starts playing the animation.
   play(): void;
-  
+
   // Stops playing the animation.
   stop(): void;
 }
@@ -23,20 +22,22 @@ export type FrameCallback = (amount: number) => void;
 export type AnimationFinishedCallback = () => void;
 export class Animation implements Animatable {
   duration_sec: number;
-  private start: number;
-  private onframe: FrameCallback;
-  private onfinish?: AnimationFinishedCallback;
+  private start_: number;
+  private onframe_: FrameCallback;
+  private onfinish_?: AnimationFinishedCallback;
 
   constructor(
-      duration_sec: number,
-      onframe: FrameCallback,
-      onfinish?: AnimationFinishedCallback) {
+    duration_sec: number,
+    onframe: FrameCallback,
+    onfinish?: AnimationFinishedCallback
+  ) {
     if (duration_sec <= 0) {
       throw new RangeError('duration_sec ≤ 0');
     }
     this.duration_sec = duration_sec;
-    this.onframe = onframe;
-    this.onfinish = onfinish;
+    this.onframe_ = onframe;
+    this.onfinish_ = onfinish;
+    this.start_ = 0;
   }
 
   isPlaying(): boolean {
@@ -48,94 +49,96 @@ export class Animation implements Animatable {
       throw new RangeError('duration_sec ≤ 0');
     }
     this.duration_sec = duration_sec;
-    this.start = performance.now();
+    this.start_ = performance.now();
     AnimationManager.getInstance().schedule(this);
   }
 
   stop(): void {
     AnimationManager.getInstance().unschedule(this);
-    if (this.onfinish) {
-      this.onfinish();
+    if (this.onfinish_) {
+      this.onfinish_();
     }
   }
 
   drawFrame(t: number): boolean {
-    let amount = (t - this.start) / (this.duration_sec * 1000);
+    const amount = (t - this.start_) / (this.duration_sec * 1000);
+    let playOnNextFrame = true;
     try {
-      this.onframe(Math.min(Math.max(0, amount), 1));
+      this.onframe_(Math.min(Math.max(0, amount), 1));
     } finally {
       if (amount >= 1) {
-        if (this.onfinish) {
-          this.onfinish();
+        if (this.onfinish_) {
+          this.onfinish_();
         }
-        return false;
+        playOnNextFrame = false;
       }
     }
-    return true;
+    return playOnNextFrame;
   }
 }
 
 export class AnimationManager {
-  private animation_frame_id: number | null;
-  private playing: Set<Animatable>;
-  private static instance: AnimationManager;
+  private animationFrameId_: number | null;
+  private playing_: Set<Animatable>;
+  private static instance_: AnimationManager;
 
   static getInstance(): AnimationManager {
-    if (!this.instance) {
-      this.instance = new AnimationManager();
+    if (!this.instance_) {
+      this.instance_ = new AnimationManager();
     }
-    return this.instance;
+    return this.instance_;
   }
 
   private constructor() {
-    this.animation_frame_id = null;
-    this.playing = new Set<Animatable>();
+    this.animationFrameId_ = null;
+    this.playing_ = new Set<Animatable>();
   }
 
   schedule(a: Animatable) {
-    this.playing.add(a);
-    this.startAnimating();
+    this.playing_.add(a);
+    this.startAnimating_();
   }
 
   unschedule(a: Animatable) {
-    this.playing.delete(a);
+    this.playing_.delete(a);
   }
 
   isScheduled(a: Animatable): boolean {
-    return this.playing.has(a);
+    return this.playing_.has(a);
   }
 
-  private animationFrame(t: number) {
+  private animationFrame_(t: number) {
     try {
-      for (let a of Array.from(this.playing)) {
+      for (const a of Array.from(this.playing_)) {
         if (!a.drawFrame.call(a, t)) {
-          this.playing.delete(a);
+          this.playing_.delete(a);
         }
       }
     } catch (err) {
-      this.playing.clear();
+      this.playing_.clear();
       throw err;
     } finally {
-      this.animation_frame_id = null;
-      if (this.playing.size > 0) {
-        this.animation_frame_id = window.requestAnimationFrame(
-          this.animationFrame.bind(this));
+      this.animationFrameId_ = null;
+      if (this.playing_.size > 0) {
+        this.animationFrameId_ = window.requestAnimationFrame(
+          this.animationFrame_.bind(this)
+        );
       }
     }
   }
 
-  private startAnimating() {
-    if (this.animation_frame_id === null) {
-      this.animation_frame_id = window.requestAnimationFrame(
-        this.animationFrame.bind(this));
+  private startAnimating_() {
+    if (this.animationFrameId_ === null) {
+      this.animationFrameId_ = window.requestAnimationFrame(
+        this.animationFrame_.bind(this)
+      );
     }
   }
 
-  cancelAnimating() {
-    if (this.animation_frame_id !== null) {
-      window.cancelAnimationFrame(this.animation_frame_id);
-      this.animation_frame_id = null;
+  private cancelAnimating_() {
+    if (this.animationFrameId_ !== null) {
+      window.cancelAnimationFrame(this.animationFrameId_);
+      this.animationFrameId_ = null;
     }
   }
 }
-

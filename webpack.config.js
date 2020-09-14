@@ -1,8 +1,7 @@
 const path = require('path');
-const webpack = require('webpack');
 module.exports = {
   entry: './src/index.ts',
-  devtool: 'source-map',
+  devtool: 'inline-source-map',
   module: {
     rules: [
       {
@@ -22,6 +21,6 @@ module.exports = {
   },
   devServer: {
     contentBase: path.resolve(__dirname, 'dist'),
-    port: 8000
-  }
+    port: 8000,
+  },
 };

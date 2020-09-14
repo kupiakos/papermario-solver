@@ -5,17 +5,26 @@
   "scripts": {
     "build": "webpack --mode=production",
     "start": "webpack-dev-server --no-inline --mode=production",
-    "start:dev": "webpack-dev-server --no-inline --mode=development"
+    "start:dev": "webpack-dev-server --no-inline --mode=development",
+    "check": "gts check",
+    "clean": "gts clean",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "pretest": "npm run compile",
+    "posttest": "npm run check"
   },
   "keywords": [],
   "author": "Alyssa Haroldsen (kupiakos@gmail.com)",
   "license": "MIT",
   "devDependencies": {
+    "gts": "^2.0.2",
     "ts-loader": "^8.0.3",
     "typescript": "^4.0.2",
     "webpack": "^4.20.2",
     "webpack-cli": "^3.1.2",
-    "webpack-dev-server": "^3.11.0"
+    "webpack-dev-server": "^3.11.0",
+    "@types/node": "^13.11.1"
   },
   "dependencies": {}
 }

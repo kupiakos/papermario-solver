@@ -1,0 +1,19 @@
+{
+  "extends": "./node_modules/gts/",
+  "env": {
+    "browser": true
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "rules": {"@typescript-eslint/naming-convention": [
+      "warn",
+      {
+        "selector": "variable",
+        "format": ["camelCase", "UPPER_CASE"],
+        "leadingUnderscore": "allow",
+        "trailingUnderscore": "allow"
+      }
+    ]}}
+  ]
+}
