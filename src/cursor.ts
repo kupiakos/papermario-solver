@@ -24,16 +24,18 @@ const CURSOR_SHIFT_MOVE_ANIMATION_TIME = 0.1;
 export class Cursor {
   type: CursorMode;
   pos: RingPosition;
-  focused: boolean;
 
+  private focused_: boolean;
   private currentMovement_: CursorMovement | null;
   private readonly animation_: Animation;
   private readonly ring_: Ring;
+  private readonly ringMovesDisplay_: HTMLElement;
+  private numMoves_: number;
 
-  constructor(ring: Ring) {
+  constructor(ring: Ring, ringMovesDisplay: HTMLElement) {
     this.type = 'ring';
     this.pos = {r: 0, th: 0};
-    this.focused = false;
+    this.focused_ = false;
     this.ring_ = ring;
     this.currentMovement_ = null;
     this.animation_ = new Animation(
@@ -50,6 +52,12 @@ export class Cursor {
         this.draw();
       }
     );
+    this.ringMovesDisplay_ = ringMovesDisplay;
+    this.numMoves_ = 0;
+  }
+
+  get focused(): boolean {
+    return this.focused_;
   }
 
   switchType() {
@@ -168,7 +176,11 @@ export class Cursor {
       this.switchType();
       this.draw();
     } else if (event.key === ' ') {
-      this.focused = !this.focused;
+      if (this.focused_) {
+        this.numMoves_++;
+        this.ringMovesDisplay_.innerText = '×' + this.numMoves_;
+      }
+      this.focused_ = !this.focused;
       this.draw();
     } else {
       let reverse: boolean;

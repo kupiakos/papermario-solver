@@ -67,6 +67,57 @@ body {
     margin: 2px 5px;
 }
 
+.overlay-box, overlay-box::before {
+    background-image: url('paper.png');
+    background-size: 4px 4px;
+}
+
+.overlay-box {
+    background-color: #f3f3f1;
+    font-family: 'Paper Mario Headers';
+    float: right;
+    z-index: 10;
+    position: relative;
+    box-shadow: #222 1px 1px 2px -1px;
+    padding: 4px 4px 4px 30px;
+    margin-right: -10px;
+    top: 50px;
+    width: 20%;
+}
+
+.overlay-box::before {
+    width: 10px;
+    height: 100%;
+    background-color: #ded933;
+    /* TODO: figure out a less hacky way to do this. */
+    content: " ";
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-block;
+}
+
+.overlay-box h2 {
+    font-weight: normal;
+    font-size: 20px;
+    margin: 0;
+    color: #444;
+}
+
+.ring-moves-wrapper {
+    text-align: left;
+    width: fit-content;
+}
+
+#ring-moves, #ring-moves::before {
+    font-size: 32px;
+    color: #82d681;
+    font-weight: bold;
+    -webkit-text-stroke: 2.5px #fff;
+    text-shadow: #000 0 0 3px;
+    text-align: center;
+}
+
 footer {
     position: absolute;
     bottom: 0;
@@ -127,6 +178,14 @@ footer {
 
     footer {
         position: absolute;
+    }
+
+    .overlay-box h2 {
+        font-size: 16px;
+    }
+
+    .overlay-box {
+        top: 0;
     }
 }
 
