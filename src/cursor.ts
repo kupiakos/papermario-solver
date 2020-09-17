@@ -26,7 +26,7 @@ export class Cursor {
   pos: RingPosition;
 
   private focused_: boolean;
-  private currentMovement_: CursorMovement | null;
+  private animatingMovement_: CursorMovement | null;
   private readonly animation_: Animation;
   private readonly ring_: Ring;
   private readonly ringMovesDisplay_: HTMLElement;
@@ -37,17 +37,17 @@ export class Cursor {
     this.pos = {r: 0, th: 0};
     this.focused_ = false;
     this.ring_ = ring;
-    this.currentMovement_ = null;
+    this.animatingMovement_ = null;
     this.animation_ = new Animation(
       CURSOR_RING_MOVE_ANIMATION_TIME,
       amount => this.drawAnimationFrame(amount),
       () => {
-        if (!this.currentMovement_) {
+        if (!this.animatingMovement_) {
           throw new ReferenceError('Last movement undefined?');
         }
         const clockwise =
-          this.currentMovement_.type === 'ring' ||
-          this.currentMovement_.clockwise;
+          this.animatingMovement_.type === 'ring' ||
+          this.animatingMovement_.clockwise;
         this.move(clockwise, false);
         this.draw();
       }
@@ -90,7 +90,7 @@ export class Cursor {
       if (this.animation_.isPlaying()) {
         return;
       }
-      this.currentMovement_ = {clockwise: reverse, type: this.type};
+      this.animatingMovement_ = {clockwise: reverse, type: this.type};
       this.animation_.play(
         this.type === 'ring'
           ? CURSOR_RING_MOVE_ANIMATION_TIME
@@ -110,12 +110,12 @@ export class Cursor {
   }
 
   private drawAnimationFrame(amount: number) {
-    if (!this.currentMovement_) {
+    if (!this.animatingMovement_) {
       throw new ReferenceError('Last movement null?');
     }
     if (
-      this.currentMovement_.type === 'row' &&
-      this.currentMovement_.clockwise
+      this.animatingMovement_.type === 'row' &&
+      this.animatingMovement_.clockwise
     ) {
       amount = -amount;
     }
@@ -182,6 +182,8 @@ export class Cursor {
       }
       this.focused_ = !this.focused;
       this.draw();
+    } else if (event.key === 'Backspace' || event.key === 'Escape') {
+      
     } else {
       let reverse: boolean;
       // When moving, Up = Left, Down = Right.
