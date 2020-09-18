@@ -86,6 +86,75 @@ function innerStroke(ctx: Context) {
   ctx.restore();
 }
 
+function simplifyMovement(m: RingMovement): RingMovement {
+  if (m.amount <= 0) {
+    throw new Error('movement with negative amount');
+  }
+  if (m.type === 'ring') {
+    const amount = m.amount % NUM_ANGLES;
+    if (amount > NUM_ANGLES / 2) {
+      return {...m, amount: NUM_ANGLES - amount, clockwise: !m.clockwise};
+    }
+    return {...m, amount};
+  }
+  const amount = m.amount % (NUM_RINGS * 2);
+  if (amount > NUM_RINGS) {
+    return {...m, amount: NUM_RINGS - amount};
+  }
+  return {...m, amount};
+}
+
+export function combineMovements(
+  m1: RingMovement | null,
+  m2: RingMovement
+): RingMovement | null {
+  if (m1 === null) {
+    return m2;
+  }
+  if (m1.type === 'ring' && m2.type === 'ring') {
+    if (m1.r !== m2.r) {
+      return null;
+    }
+    const amount =
+      (m1.clockwise ? m1.amount : -m1.amount) +
+      (m2.clockwise ? m2.amount : -m2.amount);
+    if (amount === 0) {
+      return null;
+    }
+    return simplifyMovement({
+      type: 'ring',
+      amount: Math.abs(amount),
+      clockwise: amount > 0,
+      r: m1.r,
+    });
+  } else if (m1.type === 'row' && m2.type === 'row') {
+    if (m1.th !== m2.th) {
+      return null;
+    }
+    const amount =
+      (m1.outward ? m1.amount : -m1.amount) +
+      (m2.outward ? m2.amount : -m2.amount);
+    if (amount === 0) {
+      return null;
+    }
+    return simplifyMovement({
+      type: 'row',
+      amount: Math.abs(amount),
+      outward: amount > 0,
+      th: m1.th,
+    });
+  }
+  return null;
+}
+
+export function reverseMovement(m: RingMovement): RingMovement {
+  if (m.type === 'ring') {
+    return {...m, clockwise: !m.clockwise};
+  } else {
+    return {...m, outward: !m.outward};
+  }
+}
+
 export function filledArc(
   ctx: Context,
   x: number,
@@ -153,6 +222,7 @@ export class Ring {
   private readonly ringContents: Cell[];
   private readonly animation_: Animation;
   private currentMovement_: RingMovement | null;
+  private readyCallbacks_: {(): void}[];
 
   constructor(canvases: Canvases) {
     this.canvases_ = canvases;
@@ -209,10 +279,15 @@ export class Ring {
           this.animation_.play();
         } else {
           this.currentMovement_ = null;
+          this.readyCallbacks_.forEach(cb => {
+            cb();
+          });
+          this.readyCallbacks_ = [];
         }
       }
     );
     this.currentMovement_ = null;
+    this.readyCallbacks_ = [];
   }
 
   private static isNegativeMovement(m: RingMovement): boolean {
@@ -221,23 +296,33 @@ export class Ring {
     );
   }
 
+  isBusy(): boolean {
+    return this.animation_.isPlaying();
+  }
+
+  onReady<T>(cb: () => T): T | undefined {
+    if (!this.animation_.isPlaying()) {
+      return cb();
+    }
+    this.readyCallbacks_.push(cb);
+    return;
+  }
+
   move(m: RingMovement, animate = true) {
     if (m.amount < 1) {
       throw new RangeError(`move amount ${m.amount} < 1`);
     }
     if (animate) {
-      if (this.animation_.isPlaying()) {
+      if (this.isBusy()) {
         return;
       }
-      this.currentMovement_ = m;
+      this.currentMovement_ = {...m};
       this.animation_.play(
         this.currentMovement_.type === 'ring'
           ? RING_ROTATE_ANIMATION_TIME
           : RING_SHIFT_ANIMATION_TIME
       );
       return;
-    } else if (m.amount > 1) {
-      this.move({...m, amount: m.amount - 1}, false);
     }
     if (m.type === 'ring') {
       this.rotateRing(m.r, m.clockwise);
@@ -247,7 +332,7 @@ export class Ring {
   }
 
   // Rotate ring `r` once.
-  rotateRing(r: number, clockwise = false) {
+  private rotateRing(r: number, clockwise = false) {
     console.log('Rotate ring', r, clockwise ? 'clockwise' : 'anti-clockwise');
     let start = r * NUM_ANGLES;
     let step = 1;
@@ -263,7 +348,7 @@ export class Ring {
   }
 
   // Shift the row at angular position th.
-  shiftRow(th: number, outward = false) {
+  private shiftRow(th: number, outward = false) {
     console.log('Shift row', th, outward ? 'outward' : 'inward');
     if (th >= NUM_ANGLES / 2) {
       this.shiftRow(th - NUM_ANGLES / 2, !outward);

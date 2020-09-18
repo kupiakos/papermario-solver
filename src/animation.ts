@@ -1,3 +1,5 @@
+import MultiSet from 'mnemonist/multi-set';
+
 export interface Animatable {
   // Draws the frame given the current time t.
   // Returns whether to recall this Animatable on the next frame.
@@ -79,7 +81,7 @@ export class Animation implements Animatable {
 
 export class AnimationManager {
   private animationFrameId_: number | null;
-  private playing_: Set<Animatable>;
+  private playing_: MultiSet<Animatable>;
   private static instance_: AnimationManager;
 
   static getInstance(): AnimationManager {
@@ -91,7 +93,7 @@ export class AnimationManager {
 
   private constructor() {
     this.animationFrameId_ = null;
-    this.playing_ = new Set<Animatable>();
+    this.playing_ = new MultiSet<Animatable>();
   }
 
   schedule(a: Animatable) {
@@ -111,7 +113,7 @@ export class AnimationManager {
     try {
       for (const a of Array.from(this.playing_)) {
         if (!a.drawFrame.call(a, t)) {
-          this.playing_.delete(a);
+          this.playing_.remove(a);
         }
       }
     } catch (err) {

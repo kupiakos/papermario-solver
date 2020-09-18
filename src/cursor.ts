@@ -1,4 +1,6 @@
 import {
+  combineMovements,
+  reverseMovement,
   RingGroupType,
   RingMovement,
   RingPosition,
@@ -26,11 +28,12 @@ export class Cursor {
   pos: RingPosition;
 
   private focused_: boolean;
+  private currentMovement_: RingMovement | null;
+  private numMoves_: number;
   private animatingMovement_: CursorMovement | null;
   private readonly animation_: Animation;
   private readonly ring_: Ring;
   private readonly ringMovesDisplay_: HTMLElement;
-  private numMoves_: number;
 
   constructor(ring: Ring, ringMovesDisplay: HTMLElement) {
     this.type = 'ring';
@@ -52,6 +55,7 @@ export class Cursor {
         this.draw();
       }
     );
+    this.currentMovement_ = null;
     this.ringMovesDisplay_ = ringMovesDisplay;
     this.numMoves_ = 0;
   }
@@ -172,7 +176,11 @@ export class Cursor {
 
   // Manipulate the cursor with the keyboard.
   onKeyDown(event: KeyboardEvent) {
+    if (this.ring_.isBusy()) {
+      return;
+    }
     if (event.key === 'Enter' && !this.focused) {
+      this.currentMovement_ = null;
       this.switchType();
       this.draw();
     } else if (event.key === ' ') {
@@ -183,15 +191,30 @@ export class Cursor {
       this.focused_ = !this.focused;
       this.draw();
     } else if (event.key === 'Backspace' || event.key === 'Escape') {
-      
+      if (this.focused) {
+        const unfocus = () => {
+          this.focused_ = false;
+          this.draw();
+        };
+        if (this.currentMovement_ === null) {
+          unfocus();
+          // We haven't moved in this focus yet, nothing to undo.
+          return;
+        }
+        const movement = reverseMovement(this.currentMovement_);
+        this.ring_.move(movement, true);
+        this.ring_.drawGroup(movement);
+        this.ring_.onReady(unfocus);
+        this.currentMovement_ = null;
+      }
     } else {
-      let reverse: boolean;
+      let positive: boolean;
       // When moving, Up = Left, Down = Right.
       // Left = counter-clockwise, right = clockwise.
       if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
-        reverse = false;
+        positive = false;
       } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
-        reverse = true;
+        positive = true;
       } else {
         return;
       }
@@ -200,7 +223,7 @@ export class Cursor {
         if (this.type === 'ring') {
           movement = {
             type: 'ring',
-            clockwise: reverse,
+            clockwise: positive,
             r: this.pos.r,
             amount: 1,
           };
@@ -212,19 +235,23 @@ export class Cursor {
             th % (NUM_ANGLES / 2) >= NUM_ANGLES / 4 &&
             (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
           ) {
-            reverse = !reverse;
+            positive = !positive;
           }
           movement = {
             type: 'row',
-            outward: reverse,
+            outward: positive,
             th,
             amount: 1,
           };
         }
+        this.currentMovement_ = combineMovements(
+          this.currentMovement_,
+          movement
+        );
         this.ring_.move(movement, true);
         this.ring_.drawGroup(movement);
       } else {
-        this.move(reverse);
+        this.move(positive);
         this.draw();
       }
     }
