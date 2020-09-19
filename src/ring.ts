@@ -68,8 +68,6 @@ const OUTSIDE_BORDER_WIDTH = 6;
 const ENEMY_COLOR = '#ee0';
 const ENEMY_RADIUS = 9;
 
-const DRAW_CELL_NUMBERS = false;
-
 function cellCenter({th, r}: RingPosition) {
   return {
     x: (R0 + (r + 0.5) * CELL_WIDTH) * Math.cos((th + 0.5) * CELL_ANGLE),
@@ -125,10 +123,35 @@ class Cell {
     this.hasEnemy = false;
   }
 
-  drawBase(ctx: Context, {th, r}: RingPosition) {
+  drawBase(ctx: Context, pos: RingPosition) {
     ctx.strokeStyle = CELL_BORDER;
     ctx.fillStyle = this.fill_;
     ctx.lineWidth = CELL_BORDER_WIDTH;
+    this.basePath(ctx, pos);
+    innerStroke(ctx);
+  }
+
+  drawTop(ctx: Context, {th, r}: RingPosition) {
+    if (this.hasEnemy) {
+      ctx.fillStyle = ENEMY_COLOR;
+      const dotCenter = cellCenter({th, r});
+      ctx.moveTo(dotCenter.x, dotCenter.y);
+      ctx.beginPath();
+      ctx.arc(dotCenter.x, dotCenter.y, ENEMY_RADIUS, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  }
+
+  clearTop(ctx: Context, pos: RingPosition) {
+    ctx.save();
+    ctx.fillStyle = 'black';
+    ctx.globalCompositeOperation = 'destination-out';
+    this.basePath(ctx, pos);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private basePath(ctx: Context, {th, r}: RingPosition) {
     ctx.moveTo(0, 0);
     ctx.beginPath();
     const rStart = R0 + r * CELL_WIDTH;
@@ -136,29 +159,6 @@ class Cell {
     const thStart = th * CELL_ANGLE;
     const thEnd = thStart + CELL_ANGLE;
     filledArc(ctx, 0, 0, rStart, rEnd, thStart, thEnd);
-    innerStroke(ctx);
-  }
-
-  drawTop(ctx: Context, {th, r}: RingPosition) {
-    const dotCenter = cellCenter({th, r});
-    if (this.hasEnemy) {
-      ctx.fillStyle = ENEMY_COLOR;
-      ctx.moveTo(dotCenter.x, dotCenter.y);
-      ctx.beginPath();
-      ctx.arc(dotCenter.x, dotCenter.y, ENEMY_RADIUS, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-    if (DRAW_CELL_NUMBERS) {
-      ctx.fillStyle = 'red';
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 0.2;
-      ctx.font = '7px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const cellNum = th + r * NUM_ANGLES;
-      ctx.strokeText(cellNum.toString(), dotCenter.x, dotCenter.y);
-      ctx.fillText(cellNum.toString(), dotCenter.x, dotCenter.y);
-    }
   }
 }
 
@@ -326,10 +326,6 @@ export class Ring {
     }
   }
 
-  clickCell(pos: RingPosition) {
-    this.getCell(pos).hasEnemy = true;
-  }
-
   getCell({th, r}: RingPosition) {
     if (th < 0 || th >= NUM_ANGLES || r < 0 || r >= NUM_RINGS) {
       throw new RangeError(`Cell index out of range: {th: ${th}, r: ${r}}}`);
@@ -423,10 +419,6 @@ export class Ring {
     }
   }
 
-  drawCellTop(pos: RingPosition) {
-    this.getCell(pos).drawTop(this.getLayer('enemy'), pos);
-  }
-
   drawRing() {
     // Ring cells
     for (let r = 0; r < NUM_RINGS; ++r) {
@@ -497,8 +489,11 @@ export class Ring {
     if (!pos) {
       return;
     }
-    console.log(pos);
-    this.clickCell(pos);
-    this.drawCellTop(pos);
+    console.log('click', pos);
+    const ctx = this.getLayer('enemy');
+    const cell = this.getCell(pos);
+    cell.hasEnemy = !cell.hasEnemy;
+    cell.clearTop(ctx, pos);
+    cell.drawTop(ctx, pos);
   }
 }
