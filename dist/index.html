@@ -24,13 +24,15 @@
         Your browser does not support &lt;canvas&gt;!
       </canvas>
     </div>
-    <div class="controls">
-      <div class="control">Arrow keys: Select Ring</div>
-      <div class="control">Enter: Toggle Rotate/Slide</div>
+    <div id="controls" state="choosing">
+      <div class="control" state="choosing">Arrow keys: Select Ring</div>
+      <div class="control" state="moving">Arrow keys: Ring Controls</div>
+      <div class="control" state="choosing">Enter: Toggle Rotate/Slide</div>
+      <div class="control" state="moving">Backspace: Cancel</div>
+      <div class="control" state="undo">Backspace: Undo</div>
       <div class="control">Space: Confirm</div>
       <div class="control">Click: Add enemy</div>
     </div>
-    Mobile support coming eventually.
   </div>
   <footer>Made by <a href="http://alyssa.codes">Alyssa Haroldsen</a></footer>
 </body>

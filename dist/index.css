@@ -57,14 +57,25 @@ body {
     padding-bottom: 2rem;
 }
 
-.controls {
+#controls {
     margin: 5px;
 }
 
 .control {
     display: inline-block;
+    /* display: none; */
     white-space: nowrap;
     margin: 2px 5px;
+}
+
+.control[state] {
+    display: none;
+}
+
+#controls[state~=choosing] .control[state~=choosing],
+#controls[state~=moving] .control[state~=moving],
+#controls[state~=undo] .control[state~=undo] {
+    display: inline-block
 }
 
 .overlay-box, overlay-box::before {

@@ -34,8 +34,13 @@ export class Cursor {
   private readonly animation_: Animation;
   private readonly ring_: Ring;
   private readonly ringMovesDisplay_: HTMLElement;
+  private readonly controlsDisplay_: HTMLElement;
 
-  constructor(ring: Ring, ringMovesDisplay: HTMLElement) {
+  constructor(
+    ring: Ring,
+    ringMovesDisplay: HTMLElement,
+    controlsDisplay: HTMLElement
+  ) {
     this.type = 'ring';
     this.pos = {r: 0, th: 0};
     this.focused_ = false;
@@ -57,6 +62,7 @@ export class Cursor {
     );
     this.currentMovement_ = null;
     this.ringMovesDisplay_ = ringMovesDisplay;
+    this.controlsDisplay_ = controlsDisplay;
     this.numMoves_ = 0;
   }
 
@@ -225,7 +231,10 @@ export class Cursor {
   private switchFocus() {
     this.focused_ = !this.focused_;
     this.draw();
-    return this.focused_;
+    this.controlsDisplay_.setAttribute(
+      'state',
+      this.focused ? 'moving' : 'choosing'
+    );
   }
 
   // Precondition: this.focused

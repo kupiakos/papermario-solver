@@ -17,7 +17,11 @@ function main() {
     cursor: getNotNullById<HTMLCanvasElement>('cursor-layer'),
     overlay,
   });
-  const cursor = new Cursor(ring, getNotNullById('ring-moves'));
+  const cursor = new Cursor(
+    ring,
+    getNotNullById('ring-moves'),
+    getNotNullById('controls')
+  );
   ring.draw();
   cursor.draw();
 
