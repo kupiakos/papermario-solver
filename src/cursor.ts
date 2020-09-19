@@ -1,6 +1,7 @@
 import {
   combineMovements,
   reverseMovement,
+  AnimationMode,
   RingGroupType,
   RingMovement,
   RingPosition,
@@ -222,7 +223,7 @@ export class Cursor {
       return;
     }
     const movement = reverseMovement(this.currentMovement_);
-    this.ring_.move(movement, true);
+    this.ring_.move(movement, AnimationMode.UNDO);
     this.ring_.drawGroup(movement);
     this.ring_.onReady(() => this.switchFocus());
     this.currentMovement_ = null;
@@ -267,7 +268,7 @@ export class Cursor {
       };
     }
     this.currentMovement_ = combineMovements(this.currentMovement_, movement);
-    this.ring_.move(movement, true);
+    this.ring_.move(movement, AnimationMode.NORMAL);
     this.ring_.drawGroup(movement);
   }
 

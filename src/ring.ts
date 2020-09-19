@@ -49,8 +49,16 @@ export const FRAME: Size = {
   height: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
 };
 
+export enum AnimationMode {
+  NONE = 0,
+  NORMAL = 1,
+  UNDO = 2,
+}
+
 const RING_ROTATE_ANIMATION_TIME = 0.15;
-const RING_SHIFT_ANIMATION_TIME = 0.3;
+const RING_UNDO_ROTATE_ANIMATION_TIME = 0.05;
+const RING_SHIFT_ANIMATION_TIME = 0.25;
+const RING_UNDO_SHIFT_ANIMATION_TIME = 0.08;
 
 const CELL1_FILL = '#ada786';
 const CELL2_FILL = '#8f8a6d';
@@ -75,6 +83,21 @@ function cellCenter({th, r}: RingPosition) {
     x: (R0 + (r + 0.5) * CELL_WIDTH) * Math.cos((th + 0.5) * CELL_ANGLE),
     y: (R0 + (r + 0.5) * CELL_WIDTH) * Math.sin((th + 0.5) * CELL_ANGLE),
   };
+}
+
+function animationSpeed(type: RingGroupType, animate: AnimationMode): number {
+  switch (animate) {
+    case AnimationMode.NONE:
+      return 0;
+    case AnimationMode.NORMAL:
+      return type === 'ring'
+        ? RING_ROTATE_ANIMATION_TIME
+        : RING_SHIFT_ANIMATION_TIME;
+    case AnimationMode.UNDO:
+      return type === 'ring'
+        ? RING_UNDO_ROTATE_ANIMATION_TIME
+        : RING_UNDO_SHIFT_ANIMATION_TIME;
+  }
 }
 
 // https://stackoverflow.com/a/45125187
@@ -274,7 +297,7 @@ export class Ring {
         if (!this.currentMovement_) {
           throw new ReferenceError('Last movement null?');
         }
-        this.move(this.currentMovement_, false);
+        this.move(this.currentMovement_, AnimationMode.NONE);
         if (--this.currentMovement_.amount > 0) {
           this.animation_.play();
         } else {
@@ -308,20 +331,16 @@ export class Ring {
     return;
   }
 
-  move(m: RingMovement, animate = true) {
+  move(m: RingMovement, animate: AnimationMode = AnimationMode.NORMAL) {
     if (m.amount < 1) {
       throw new RangeError(`move amount ${m.amount} < 1`);
     }
-    if (animate) {
+    if (animate !== AnimationMode.NONE) {
       if (this.isBusy()) {
         return;
       }
       this.currentMovement_ = {...m};
-      this.animation_.play(
-        this.currentMovement_.type === 'ring'
-          ? RING_ROTATE_ANIMATION_TIME
-          : RING_SHIFT_ANIMATION_TIME
-      );
+      this.animation_.play(animationSpeed(m.type, animate));
       return;
     }
     if (m.type === 'ring') {
