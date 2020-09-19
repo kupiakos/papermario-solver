@@ -1,9 +1,5 @@
 import {
-  combineMovements,
-  reverseMovement,
   AnimationMode,
-  RingGroupType,
-  RingMovement,
   RingPosition,
   Ring,
   filledArc,
@@ -14,6 +10,12 @@ import {
   CELL_WIDTH,
   CELL_ANGLE,
 } from './ring';
+import {
+  combineMovements,
+  reverseMovement,
+  RingGroupType,
+  RingMovement,
+} from './movement';
 import {Animation} from './animation';
 
 type CursorMode = RingGroupType;
