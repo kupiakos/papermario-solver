@@ -231,6 +231,9 @@ export class Cursor {
 
   private switchFocus() {
     this.focused_ = !this.focused_;
+    if (!this.focused_) {
+      this.currentMovement_ = null;
+    }
     this.draw();
     this.controlsDisplay_.setAttribute(
       'state',

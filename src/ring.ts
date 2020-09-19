@@ -122,7 +122,7 @@ function simplifyMovement(m: RingMovement): RingMovement {
   }
   const amount = m.amount % (NUM_RINGS * 2);
   if (amount > NUM_RINGS) {
-    return {...m, amount: NUM_RINGS - amount};
+    return {...m, amount: NUM_RINGS * 2 - amount, outward: !m.outward};
   }
   return {...m, amount};
 }
