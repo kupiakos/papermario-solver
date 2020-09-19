@@ -274,7 +274,7 @@ export class Ring {
   }
 
   // Rotate ring `r` once.
-  private rotateRing(r: number, clockwise = false) {
+  private rotateRing(r: number, clockwise: boolean) {
     console.log('Rotate ring', r, clockwise ? 'clockwise' : 'anti-clockwise');
     let start = r * NUM_ANGLES;
     let step = 1;
@@ -290,7 +290,7 @@ export class Ring {
   }
 
   // Shift the row at angular position th.
-  private shiftRow(th: number, outward = false) {
+  private shiftRow(th: number, outward: boolean) {
     console.log('Shift row', th, outward ? 'outward' : 'inward');
     if (th >= NUM_ANGLES / 2) {
       this.shiftRow(th - NUM_ANGLES / 2, !outward);
