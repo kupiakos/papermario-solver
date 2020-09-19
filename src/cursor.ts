@@ -12,6 +12,7 @@ import {
 } from './ring';
 import {
   combineMovements,
+  MoveHistory,
   reverseMovement,
   RingGroupType,
   RingMovement,
@@ -32,16 +33,15 @@ export class Cursor {
 
   private focused_: boolean;
   private currentMovement_: RingMovement | null;
-  private numMoves_: number;
   private animatingMovement_: CursorMovement | null;
   private readonly animation_: Animation;
   private readonly ring_: Ring;
-  private readonly ringMovesDisplay_: HTMLElement;
+  private readonly moveHistory_: MoveHistory;
   private readonly controlsDisplay_: HTMLElement;
 
   constructor(
     ring: Ring,
-    ringMovesDisplay: HTMLElement,
+    moveHistory: MoveHistory,
     controlsDisplay: HTMLElement
   ) {
     this.type = 'ring';
@@ -64,9 +64,8 @@ export class Cursor {
       }
     );
     this.currentMovement_ = null;
-    this.ringMovesDisplay_ = ringMovesDisplay;
+    this.moveHistory_ = moveHistory;
     this.controlsDisplay_ = controlsDisplay;
-    this.numMoves_ = 0;
   }
 
   get focused(): boolean {
@@ -194,11 +193,9 @@ export class Cursor {
       this.draw();
     } else if (event.key === ' ') {
       if (this.focused) {
-        this.numMoves_++;
-        this.ringMovesDisplay_.innerText = '×' + this.numMoves_;
+        this.moveHistory_.addMovement(this.currentMovement_);
       }
       this.switchFocus();
-      this.currentMovement_ = null;
     } else if (event.key === 'Backspace' || event.key === 'Escape') {
       if (this.focused) {
         this.cancel();
@@ -233,9 +230,7 @@ export class Cursor {
 
   private switchFocus() {
     this.focused_ = !this.focused_;
-    if (!this.focused_) {
-      this.currentMovement_ = null;
-    }
+    this.currentMovement_ = null;
     this.draw();
     this.controlsDisplay_.setAttribute(
       'state',

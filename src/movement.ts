@@ -77,3 +77,22 @@ export function reverseMovement(m: RingMovement): RingMovement {
     return {...m, outward: !m.outward};
   }
 }
+
+export class MoveHistory {
+  private moves_: (RingMovement | null)[];
+  private readonly ringMovesDisplay_: HTMLElement;
+
+  constructor(ringMovesDisplay: HTMLElement) {
+    this.ringMovesDisplay_ = ringMovesDisplay;
+    this.moves_ = [];
+  }
+
+  addMovement(m: RingMovement | null) {
+    this.moves_.push(m);
+    this.updateDisplay();
+  }
+
+  private updateDisplay() {
+    this.ringMovesDisplay_.innerText = '×' + this.moves_.length;
+  }
+}

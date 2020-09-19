@@ -1,5 +1,6 @@
 import {Ring} from './ring';
 import {Cursor} from './cursor';
+import {MoveHistory} from './movement';
 
 function getNotNullById<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -19,7 +20,7 @@ function main() {
   });
   const cursor = new Cursor(
     ring,
-    getNotNullById('ring-moves'),
+    new MoveHistory(getNotNullById('ring-moves')),
     getNotNullById('controls')
   );
   ring.draw();
