@@ -184,76 +184,92 @@ export class Cursor {
       this.switchType();
       this.draw();
     } else if (event.key === ' ') {
-      if (this.focused_) {
+      if (this.focused) {
         this.numMoves_++;
         this.ringMovesDisplay_.innerText = '×' + this.numMoves_;
       }
-      this.focused_ = !this.focused;
-      this.draw();
+      this.switchFocus();
     } else if (event.key === 'Backspace' || event.key === 'Escape') {
       if (this.focused) {
-        const unfocus = () => {
-          this.focused_ = false;
-          this.draw();
-        };
-        if (this.currentMovement_ === null) {
-          unfocus();
-          // We haven't moved in this focus yet, nothing to undo.
-          return;
-        }
-        const movement = reverseMovement(this.currentMovement_);
-        this.ring_.move(movement, true);
-        this.ring_.drawGroup(movement);
-        this.ring_.onReady(unfocus);
-        this.currentMovement_ = null;
+        this.cancel();
       }
     } else {
-      let positive: boolean;
-      // When moving, Up = Left, Down = Right.
-      // Left = counter-clockwise, right = clockwise.
-      if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
-        positive = false;
-      } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
-        positive = true;
-      } else {
-        return;
-      }
       if (this.focused) {
-        let movement: RingMovement;
-        if (this.type === 'ring') {
-          movement = {
-            type: 'ring',
-            clockwise: positive,
-            r: this.pos.r,
-            amount: 1,
-          };
-        } else {
-          const th = this.pos.th;
-          // While actively shifting, the direction depends where you are.
-          // On the bottom-left/top-right rows, Up = Right, Down = Left.
-          if (
-            th % (NUM_ANGLES / 2) >= NUM_ANGLES / 4 &&
-            (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
-          ) {
-            positive = !positive;
-          }
-          movement = {
-            type: 'row',
-            outward: positive,
-            th,
-            amount: 1,
-          };
-        }
-        this.currentMovement_ = combineMovements(
-          this.currentMovement_,
-          movement
-        );
-        this.ring_.move(movement, true);
-        this.ring_.drawGroup(movement);
+        this.moveRing(event.key);
       } else {
+        const positive = this.arrowIsPositive(event.key);
+        if (positive === null) {
+          return;
+        }
         this.move(positive);
         this.draw();
       }
+    }
+  }
+
+  // Precondition: this.focused.
+  private cancel() {
+    if (this.currentMovement_ === null) {
+      this.switchFocus();
+      // We haven't moved in this focus yet, nothing to undo.
+      return;
+    }
+    const movement = reverseMovement(this.currentMovement_);
+    this.ring_.move(movement, true);
+    this.ring_.drawGroup(movement);
+    this.ring_.onReady(() => this.switchFocus());
+    this.currentMovement_ = null;
+  }
+
+  private switchFocus() {
+    this.focused_ = !this.focused_;
+    this.draw();
+    return this.focused_;
+  }
+
+  // Precondition: this.focused
+  private moveRing(key: string) {
+    let positive = this.arrowIsPositive(key);
+    if (positive === null) {
+      return;
+    }
+    let movement: RingMovement;
+    if (this.type === 'ring') {
+      movement = {
+        type: 'ring',
+        clockwise: positive,
+        r: this.pos.r,
+        amount: 1,
+      };
+    } else {
+      const th = this.pos.th;
+      // While actively shifting, the direction depends where you are.
+      // On the bottom-left/top-right rows, Up = Right, Down = Left.
+      const quadrant1Or3 = th % (NUM_ANGLES / 2) >= NUM_ANGLES / 4;
+      if (quadrant1Or3 && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+        positive = !positive;
+      }
+      movement = {
+        type: 'row',
+        outward: positive,
+        th,
+        amount: 1,
+      };
+    }
+    this.currentMovement_ = combineMovements(this.currentMovement_, movement);
+    this.ring_.move(movement, true);
+    this.ring_.drawGroup(movement);
+  }
+
+  // When moving, Up = Left, Down = Right.
+  // Left = counter-clockwise, right = clockwise.
+  private arrowIsPositive(key: string): boolean | null {
+    if (key === 'ArrowUp' || key === 'ArrowLeft') {
+      return false;
+    } else if (key === 'ArrowDown' || key === 'ArrowRight') {
+      return true;
+    } else {
+      return null;
     }
   }
 }
