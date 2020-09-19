@@ -92,6 +92,20 @@ export class MoveHistory {
     this.updateDisplay();
   }
 
+  get empty(): boolean {
+    return this.moves_.length === 0;
+  }
+
+  // Precondition: !empty
+  popMovement(): RingMovement | null {
+    const m = this.moves_.pop();
+    if (m === undefined) {
+      throw Error('No movements to pop');
+    }
+    this.updateDisplay();
+    return m;
+  }
+
   private updateDisplay() {
     this.ringMovesDisplay_.innerText = '×' + this.moves_.length;
   }

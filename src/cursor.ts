@@ -199,6 +199,8 @@ export class Cursor {
     } else if (event.key === 'Backspace' || event.key === 'Escape') {
       if (this.focused) {
         this.cancel();
+      } else {
+        this.undo();
       }
     } else {
       if (this.focused) {
@@ -214,6 +216,7 @@ export class Cursor {
     }
   }
 
+  // Cancel a planned movement with the cursor.
   // Precondition: this.focused.
   private cancel() {
     if (this.currentMovement_ === null) {
@@ -226,16 +229,42 @@ export class Cursor {
     this.ring_.drawGroup(movement);
     this.ring_.onReady(() => this.switchFocus());
     this.currentMovement_ = null;
+    this.updateControls();
+  }
+
+  // Undo a movement already executed.
+  // Precondition: !this.focused.
+  private undo() {
+    if (this.moveHistory_.empty) {
+      return;
+    }
+    const movement = this.moveHistory_.popMovement();
+    if (movement === null) {
+      return;
+    }
+    this.ring_.move(reverseMovement(movement), AnimationMode.UNDO);
+    this.ring_.drawGroup(movement);
+    this.updateControls();
   }
 
   private switchFocus() {
     this.focused_ = !this.focused_;
     this.currentMovement_ = null;
     this.draw();
-    this.controlsDisplay_.setAttribute(
-      'state',
-      this.focused ? 'moving' : 'choosing'
-    );
+    this.updateControls();
+  }
+
+  private updateControls() {
+    let state: string;
+    if (this.focused) {
+      state = 'moving';
+    } else {
+      state = 'choosing';
+      if (!this.moveHistory_.empty) {
+        state += ' undo';
+      }
+    }
+    this.controlsDisplay_.setAttribute('state', state);
   }
 
   // Precondition: this.focused
