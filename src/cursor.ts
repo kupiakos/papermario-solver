@@ -189,6 +189,7 @@ export class Cursor {
         this.ringMovesDisplay_.innerText = '×' + this.numMoves_;
       }
       this.switchFocus();
+      this.currentMovement_ = null;
     } else if (event.key === 'Backspace' || event.key === 'Escape') {
       if (this.focused) {
         this.cancel();
