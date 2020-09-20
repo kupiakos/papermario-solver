@@ -15,16 +15,17 @@
     "posttest": "npm run check"
   },
   "keywords": [],
-  "author": "Alyssa Haroldsen (kupiakos@gmail.com)",
+  "author": "Alyssa Haroldsen <kupiakos@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^13.11.1",
+    "copy-webpack-plugin": "^6.1.1",
     "gts": "^2.0.2",
     "ts-loader": "^8.0.3",
     "typescript": "^4.0.2",
     "webpack": "^4.20.2",
     "webpack-cli": "^3.1.2",
-    "webpack-dev-server": "^3.11.0",
-    "@types/node": "^13.11.1"
+    "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
     "mnemonist": "^0.38.0"

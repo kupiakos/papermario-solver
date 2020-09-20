@@ -1,4 +1,7 @@
 const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
+
+const dist = path.resolve(__dirname, 'dist');
 module.exports = {
   entry: './src/index.ts',
   devtool: 'inline-source-map',
@@ -17,10 +20,15 @@ module.exports = {
   },
   output: {
     filename: 'index.js',
-    path: path.resolve(__dirname, 'dist'),
+    path: dist,
   },
   devServer: {
-    contentBase: path.resolve(__dirname, 'dist'),
+    contentBase: dist,
     port: 8000,
   },
+  plugins: [
+    new CopyPlugin({
+      patterns: [{from: path.resolve(__dirname, 'static'), to: dist}],
+    }),
+  ],
 };
