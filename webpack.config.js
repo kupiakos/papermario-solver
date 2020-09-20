@@ -1,3 +1,4 @@
+/* eslint-disable node/no-unpublished-require */
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 

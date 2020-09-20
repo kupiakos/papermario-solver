@@ -10,7 +10,6 @@
       "sourceMaps": true,
       "name": "Launch Chrome against localhost",
       "url": "http://localhost:8000",
-      "trace": "verboser",
       "webRoot": "${workspaceFolder}/dist",
       "sourceMapPathOverrides": {
           "webpack:///./*": "${workspaceRoot}/*"

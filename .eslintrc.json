@@ -5,15 +5,24 @@
   },
   "overrides": [
     {
-      "files": ["**/*.ts", "**/*.tsx"],
-      "rules": {"@typescript-eslint/naming-convention": [
-      "warn",
-      {
-        "selector": "variable",
-        "format": ["camelCase", "UPPER_CASE"],
-        "leadingUnderscore": "allow",
-        "trailingUnderscore": "allow"
+      "files": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "rules": {
+        "@typescript-eslint/naming-convention": [
+          "warn",
+          {
+            "selector": "variable",
+            "format": [
+              "camelCase",
+              "UPPER_CASE"
+            ],
+            "leadingUnderscore": "allow",
+            "trailingUnderscore": "allow"
+          }
+        ]
       }
-    ]}}
+    }
   ]
 }
