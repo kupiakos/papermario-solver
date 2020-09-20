@@ -1,11 +1,12 @@
 /* eslint-disable node/no-unpublished-require */
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
+const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
 
 const dist = path.resolve(__dirname, 'dist');
 module.exports = {
   entry: './src/index.ts',
-  devtool: 'inline-source-map',
+  devtool: 'source-map',
   module: {
     rules: [
       {
@@ -17,7 +18,7 @@ module.exports = {
   },
   resolve: {
     modules: ['src', 'node_modules'],
-    extensions: ['.ts', '.js'],
+    extensions: ['.ts', '.js', '.wasm'],
   },
   output: {
     filename: 'index.js',
@@ -30,6 +31,11 @@ module.exports = {
   plugins: [
     new CopyPlugin({
       patterns: [{from: path.resolve(__dirname, 'static'), to: dist}],
+    }),
+    new WasmPackPlugin({
+      crateDirectory: __dirname,
+      outName: 'solver',
+      withTypescript: true,
     }),
   ],
 };

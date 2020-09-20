@@ -3,6 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "lib": ["dom"],
+    "module": "esNext",
+    "moduleResolution": "node",
     "esModuleInterop": true,
   },
   "include": [
