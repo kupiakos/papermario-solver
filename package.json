@@ -8,7 +8,6 @@
     "start:dev": "webpack-dev-server --no-inline --mode=development",
     "check": "gts check",
     "clean": "rimraf dist pkg target",
-    "compile": "tsc",
     "fix": "gts fix",
     "prepare": "npm run compile",
     "pretest": "npm run compile",

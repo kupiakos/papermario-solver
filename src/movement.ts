@@ -9,7 +9,7 @@ export type RingRotate = RingSubring & {clockwise: boolean; amount: number};
 export type RingShift = RingRow & {outward: boolean; amount: number};
 export type RingMovement = RingRotate | RingShift;
 
-function simplifyMovement(m: RingMovement): RingMovement {
+export function simplifyMovement(m: RingMovement): RingMovement {
   if (m.amount <= 0) {
     throw new Error('movement with negative amount');
   }
