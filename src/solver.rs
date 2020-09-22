@@ -1,4 +1,5 @@
 use serde::Serialize;
+use arrayvec::ArrayVec;
 use std::collections::VecDeque;
 // use serde_wasm_bindgen;
 use wasm_bindgen::prelude::*;
@@ -34,8 +35,8 @@ const MAX_TURNS: u16 = 3;
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all="camelCase")]
 pub enum RingMovement {
-    Ring { r: u16, amount: u16, clockwise: bool },
-    Row { th: u16, amount: u16, outward: bool },
+    Ring { r: u16, amount: i16, clockwise: bool },
+    Row { th: u16, amount: i16, outward: bool },
 }
 
 #[derive(Serialize)]
@@ -47,56 +48,128 @@ pub struct Solution {
     pub hammerable_groups: u32,
 }
 
-fn rotate_left_masked(mut x: u16, k: u16) -> u16 {
-    x <<= 1;
-    x |= ((x & (1 << k)) != 0) as u16;
-    x &= (1 << k) - 1;
-    return x;
+trait MaskedInt: Sized + Copy {
+    const NUM_BITS: u16;
+    fn new(value: u16) -> Self;
+    fn value(self) -> u16;
+
+    fn rotate_left(self, n: u16) -> Self {
+        let x = self.value();
+        let n = n % Self::NUM_BITS;
+        let m = ((1 << n) - 1) << (Self::NUM_BITS - n);
+        let y = (x & m) >> (Self::NUM_BITS - n);
+        return Self::new(((x << n) | y) & ((1 << Self::NUM_BITS) - 1));
+    }
+
+    fn rotate_right(self, n: u16) -> Self {
+        let x = self.value();
+        let n = n % Self::NUM_BITS;
+        let m = (1 << n) - 1;
+        let y = (x & m) << (Self::NUM_BITS - n);
+        return Self::new((x >> n) | y);
+    }
 }
 
-fn rotate_until_even(x: u16, k: u16) -> u16 {
-    let n = x.trailing_ones() as u16;
-    let y = x & ((1 << n) - 1);
-    return (x >> n) | (y << (k - n));
+#[derive(Clone, Copy)]
+struct Subring(pub u16);
+impl MaskedInt for Subring {
+    const NUM_BITS: u16 = NUM_ANGLES;
+
+    fn new(value: u16) -> Self {
+        Self(value)
+    }
+
+    fn value(self) -> u16 {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Row(pub u16);
+impl MaskedInt for Row {
+    const NUM_BITS: u16 = NUM_RINGS * 2;
+
+    fn new(value: u16) -> Self {
+        Self(value)
+    }
+
+    fn value(self) -> u16 {
+        self.0
+    }
+}
+
+struct ZigZagBits<T: MaskedInt> {
+    data: T,
+    amount: i16,
+}
+
+impl<T: MaskedInt> ZigZagBits<T> {
+    fn new(data: T) -> Self {
+        ZigZagBits { data, amount: 0 }
+    }
+}
+
+impl<T: MaskedInt> Iterator for ZigZagBits<T> {
+    type Item = (T, i16);
+    fn next(&mut self) -> Option<Self::Item> {
+        let new_amount = -self.amount + ((self.amount <= 0) as i16);
+        let diff = new_amount - self.amount;
+        #[cfg(debug_assertions)]
+        console::log_3(
+            &JsValue::from(self.amount),
+            &JsValue::from(new_amount),
+            &JsValue::from(diff));
+        self.data = if diff > 0 {
+            self.data.rotate_left(diff as u16)
+        } else {
+            self.data.rotate_right(-diff as u16)
+        };
+        self.amount = new_amount;
+        Some((self.data, new_amount))
+    }
 }
 
 struct RingRotations {
     ring: Ring,
     pub r: u16,
+    subring_iter: ZigZagBits<Subring>,
 }
 
 impl RingRotations {
     fn new(ring: Ring, r: u16) -> Option<Self> {
-        if ring[r as usize] == 0 {
+        let subring = Subring(ring[r as usize]);
+        if subring.0 == 0 {
             return None;
         }
-        Some(RingRotations {ring, r})
+        let subring_iter = ZigZagBits::new(subring);
+        Some(RingRotations {ring, r, subring_iter})
     }
 }
 
 impl Iterator for RingRotations {
-    type Item = Ring;
+    type Item = (Ring, RingMovement);
     fn next(&mut self) -> Option<Self::Item> {
-        {
-            let subring = &mut self.ring[self.r as usize];
-            *subring = rotate_left_masked(*subring, NUM_ANGLES);
-        }
+        let (subring, amount) = self.subring_iter.next()?;
+        self.ring[self.r as usize] = subring.value();
         #[cfg(debug_assertions)]
-        console::log_3(
-            &JsValue::from("r:"),
-            &JsValue::from(self.r),
+        console::log_1(
             &JsValue::from(&format!(
-                "\n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
-                self.ring[3], self.ring[2], self.ring[1], self.ring[0])),
+                "r: {}, amount: {}, \n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
+                self.r, amount, self.ring[3], self.ring[2], self.ring[1], self.ring[0]
+            )),
         );
-        Some(self.ring)
+        Some((self.ring, RingMovement::Ring {
+            r: self.r,
+            amount: amount.abs(),
+            clockwise: amount > 0,
+        }))
     }
 }
 
 struct RingShifts {
     ring: Ring,
     pub th: u16,
-    row: u16,
+    row_iter: ZigZagBits<Row>,
 }
 
 impl RingShifts {
@@ -123,14 +196,16 @@ impl RingShifts {
         if row == 0 {
             return None;
         }
-        Some(RingShifts {ring, th, row})
+        let row_iter = ZigZagBits::new(Row(row));
+        Some(RingShifts {ring, th, row_iter})
     }
 }
 
 impl Iterator for RingShifts {
-    type Item = Ring;
+    type Item = (Ring, RingMovement);
     fn next(&mut self) -> Option<Self::Item> {
-        let row = rotate_left_masked(self.row, NUM_RINGS * 2);
+        let (row, amount) = self.row_iter.next()?;
+        let row = row.value();
         for r in 0..4 {
             let subring = &mut self.ring[r as usize];
             let low = (row & (1 << r) != 0) as u16;
@@ -140,45 +215,120 @@ impl Iterator for RingShifts {
             *subring = (*subring & !(1 << (th + 6))) | (high << (th + 6));
         }
         #[cfg(debug_assertions)]
-        console::log_4(
-            &JsValue::from("th:"),
-            &JsValue::from(self.th),
-            &JsValue::from(&format!("row: {:08b}", row)),
+        console::log_1(
             &JsValue::from(&format!(
-                "\n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
-                self.ring[3], self.ring[2], self.ring[1], self.ring[0])),
+                "th: {}, amount: {}, row: {:08b}\n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
+                self.th, amount, row, self.ring[3], self.ring[2], self.ring[1], self.ring[0]
+            )),
         );
-        self.row = row;
-        Some(self.ring)
+        Some((self.ring, RingMovement::Row {
+            th: self.th,
+            amount: amount.abs(),
+            outward: amount > 0,
+        }))
     }
 }
 
-fn all_nonempty_rotations(ring: Ring) -> impl Iterator<Item = (RingMovement, Ring)> {
-    (0..NUM_RINGS)
-        .filter_map(move |r| RingRotations::new(ring, r))
-        .flat_map(|rotates| {
-            let r = rotates.r;
-            rotates
-                .zip(1..NUM_ANGLES)
-                .map(move |(rotated, amount)|
-            (RingMovement::Ring {amount, r, clockwise: true}, rotated))
-        })
-}
+// <I: Iterator, T: BorrowMut<[I]>> {
+// struct Interleavers<'a, I: Iterator> {
+//     slice: &'a mut [I],
+// }
 
-fn all_nonempty_shifts(ring: Ring) -> impl Iterator<Item = (RingMovement, Ring)> {
-    (0..(NUM_ANGLES / 2))
-        .filter_map(move |r| RingShifts::new(ring, r))
-        .flat_map(|shifts| {
-            let th = shifts.th;
-            shifts
-                .zip(1..(NUM_RINGS * 2))
-                .map(move |(shifted, amount)|
-            (RingMovement::Row {amount, th, outward: true}, shifted))
-        })
-}
+// impl<'a, I: Iterator> Interleavers<'a, I> {
+//     fn new(slice: &'a mut [I]) -> Self {
+//         Self { slice }
+//     }
+// }
 
-fn all_nonempty_movements(ring: Ring) -> impl Iterator<Item = (RingMovement, Ring)> {
-    all_nonempty_rotations(ring).chain(all_nonempty_shifts(ring))
+// impl<'a, I: Iterator> Iterator for Interleavers<'a, I> where I: Sized, I::Item: Sized {
+//     // type Item = std::iter::Map<std::slice::IterMut<'a, I>, fn(&mut I) -> I::Item>;
+//     type Item = std::slice::IterMut<'a, I>;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         Some(self.slice.iter_mut())
+//         // Some(self.slice.iter_mut().map(|x| x.next().unwrap()))
+//     }
+// }
+
+// fn interleavers<'a, I: Iterator>(slice: &'a mut [I]) -> impl Iterator<Item=impl Iterator> + '_ {
+//     let x = std::iter::repeat_with(move || slice.iter_mut());
+//     unimplemented!();
+// }
+
+// fn interleavers<U, I: Iterator<Item = U>, T: BorrowMut<[I]>>(collection: T) -> impl Iterator<Item=impl Iterator<Item=U>> {
+//     std::iter::repeat_with(move || collection.borrow_mut().iter_mut())
+//         .map(|x| x.next().unwrap())
+//     // I'd like to get this working with:
+//     // std::iter::repeat_with(move || collection.borrow_mut().iter_mut())
+//     //     .scan(false, |done, iters| {
+//     //         if *done {
+//     //             None
+//     //         } else {
+//     //             Some(iters.scan((), move |(), iter| {
+//     //                 let item = iter.next();
+//     //                 if item.is_none() {
+//     //                     *done = false;
+//     //                 }
+//     //                 item
+//     //             }))
+//     //         }
+//     //     })
+// }
+
+// fn all_nonempty_rotations(ring: Ring) -> impl Iterator<Item = (RingMovement, Ring)> {
+//     // TODO: do near rotations first
+//     (0..NUM_RINGS)
+//         .filter_map(move |r| RingRotations::new(ring, r))
+//         .flat_map(|rotates| {
+//             let r = rotates.r;
+//             let clockwises = 1..=((NUM_ANGLES as i16) / 2);
+//             let anticlockwises = ((-(NUM_ANGLES as i16) / 2 + 1)..0).rev();
+//             rotates
+//                 .zip(clockwises.into_iter().chain(anticlockwises))
+//                 .map(move |(rotated, amount)|
+//             (RingMovement::Ring {amount, r, clockwise: true}, rotated))
+//         })
+// }
+
+// fn all_nonempty_shifts(ring: Ring) -> impl Iterator<Item = (RingMovement, Ring)> {
+//     (0..(NUM_ANGLES / 2))
+//         .filter_map(move |r| RingShifts::new(ring, r))
+//         .flat_map(|shifts| {
+//             let th = shifts.th;
+//             shifts
+//                 .zip((-(NUM_RINGS as i16) + 1)..(NUM_RINGS as i16))
+//                 .map(move |(shifted, amount)|
+//             (RingMovement::Row {amount, th, outward: true}, shifted))
+//         })
+// }
+
+// fn all_nonempty_movements(ring: Ring) -> impl Iterator<Item = (RingMovement, Ring)> {
+//     all_nonempty_rotations(ring).chain(all_nonempty_shifts(ring))
+// }
+
+fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(ring: Ring, cb: F) -> Option<Solution> {
+    let mut rotators: ArrayVec<[RingRotations; NUM_RINGS as usize]> = (0..NUM_RINGS)
+        .filter_map(|r| RingRotations::new(ring, r))
+        .collect();
+    let mut shifters: ArrayVec<[RingShifts; (NUM_ANGLES / 2) as usize]> = (0..(NUM_ANGLES / 2))
+        .filter_map(|th| RingShifts::new(ring, th))
+        .collect();
+    for n in 0..(NUM_ANGLES / 2) {
+        for rotator in rotators.iter_mut() {
+            let (moved, movement) = rotator.next().unwrap();
+            if let Some(solution) = cb(movement, moved) {
+                return Some(solution);
+            }
+        }
+        if n < NUM_RINGS * 2 {
+            for shifter in shifters.iter_mut() {
+                let (moved, movement) = shifter.next().unwrap();
+                if let Some(solution) = cb(movement, moved) {
+                    return Some(solution);
+                }
+            }
+        }
+    }
+    None
 }
 
 #[wasm_bindgen(skip_typescript)]
@@ -192,7 +342,7 @@ pub fn solve(ring: JsValue) -> Result<JsValue> {
 }
 
 fn find_solution(ring: Ring, max_turns: u16) -> Option<Solution> {
-    for turn in 0..max_turns {
+    for turn in 0..=max_turns {
         if let Some(solution) = find_solution_at_turn(ring, turn) {
             return Some(solution);
         }
@@ -204,19 +354,22 @@ fn find_solution_at_turn(ring: Ring, turn: u16) -> Option<Solution> {
     if turn == 0  {
         return get_solution(ring);
     }
-    for (movement, moved) in all_nonempty_movements(ring) {
-        if let Some(mut solution) = find_solution_at_turn(moved, turn - 1) {
-            solution.moves.push_front(movement);
-            return Some(solution);
+    iterate_movements(ring, |movement, moved| {
+        match find_solution_at_turn(moved, turn - 1) {
+            Some(mut solution) => {
+                solution.moves.push_front(movement);
+                Some(solution)
+            },
+            None => None,
         }
-    }
-    None
+    })
 }
 
 fn get_solution(ring: Ring) -> Option<Solution> {
     let enemies: u32 = ring.iter().copied().map(u16::count_ones).sum();
     let outer = ring[2] | ring[3];
-    let mut inner = rotate_until_even((ring[0] | ring [1]) & !outer, NUM_ANGLES);
+    let mut inner = (ring[0] | ring [1]) & !outer;
+    inner = Subring(inner).rotate_right(inner.trailing_ones() as u16).value();
     let actions = enemies / 4 + ((enemies % 4 != 0) as u32);
     let jump_rows = outer.count_ones();
     let mut hammerable_groups = 0;

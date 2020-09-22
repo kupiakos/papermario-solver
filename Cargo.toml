@@ -12,6 +12,9 @@ edition = "2018"
 crate-type = ["cdylib"]
 path = "src/solver.rs"
 
+[profile.dev]
+debug-assertions = false
+
 [profile.release]
 # This makes the compiled code faster and smaller, but it makes compiling slower,
 # so it's only enabled in release mode.
@@ -31,6 +34,8 @@ serde = { version = "^1.0", features = ["derive"] }
 
 # serde-wasm-bindgen allows conversion of native Rust structs to JavaScript.
 serde-wasm-bindgen = "0.1.3"
+
+arrayvec = "0.5"
 
 [target."cfg(debug_assertions)".dependencies]
 # The `web-sys` crate allows you to interact with the various browser APIs,
