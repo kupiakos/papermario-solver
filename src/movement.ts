@@ -10,15 +10,18 @@ export type RingShift = RingRow & {outward: boolean; amount: number};
 export type RingMovement = RingRotate | RingShift;
 
 export function simplifyMovement(m: RingMovement): RingMovement {
-  if (m.amount <= 0) {
-    throw new Error('movement with negative amount');
-  }
   if (m.type === 'ring') {
+    if (m.amount <= 0) {
+      return {...m, amount: -m.amount, clockwise: !m.clockwise};
+    }
     const amount = m.amount % NUM_ANGLES;
     if (amount > NUM_ANGLES / 2) {
       return {...m, amount: NUM_ANGLES - amount, clockwise: !m.clockwise};
     }
     return {...m, amount};
+  }
+  if (m.amount <= 0) {
+    return {...m, amount: -m.amount, outward: !m.outward};
   }
   const amount = m.amount % (NUM_RINGS * 2);
   if (amount > NUM_RINGS) {
