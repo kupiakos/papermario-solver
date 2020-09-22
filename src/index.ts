@@ -29,7 +29,7 @@ function main() {
 
   overlay.addEventListener('mousedown', ring.onMouseDown.bind(ring));
   document.addEventListener('keydown', cursor.onKeyDown.bind(cursor));
-  solve();
+  getNotNullById('solve').addEventListener('click', () => solve(ring));
 }
 
 window.addEventListener('load', main);
