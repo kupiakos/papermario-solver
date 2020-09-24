@@ -4,15 +4,14 @@ const CopyPlugin = require('copy-webpack-plugin');
 const WasmPackPlugin = require('@wasm-tool/wasm-pack-plugin');
 
 const dist = path.resolve(__dirname, 'dist');
-module.exports = {
-  entry: './src/index.ts',
-  devtool: 'source-map',
+const baseConfig = {
   module: {
     rules: [
       {
         test: /\.ts$/,
         use: 'ts-loader',
         exclude: /node_modules/,
+        // options: {projectReferences: true},
       },
     ],
   },
@@ -20,6 +19,12 @@ module.exports = {
     modules: ['src', 'node_modules'],
     extensions: ['.ts', '.js', '.wasm'],
   },
+};
+
+const browserConfig = {
+  ...baseConfig,
+  entry: './src/index.ts',
+  devtool: 'source-map',
   output: {
     filename: 'index.js',
     path: dist,
@@ -32,6 +37,18 @@ module.exports = {
     new CopyPlugin({
       patterns: [{from: path.resolve(__dirname, 'static'), to: dist}],
     }),
+  ],
+};
+
+const workerConfig = {
+  ...baseConfig,
+  entry: './src/worker.ts',
+  target: 'webworker',
+  output: {
+    filename: 'worker.js',
+    path: dist,
+  },
+  plugins: [
     new WasmPackPlugin({
       crateDirectory: __dirname,
       outName: 'solver',
@@ -39,3 +56,6 @@ module.exports = {
     }),
   ],
 };
+
+// See https://github.com/webpack/webpack/issues/7647#issuecomment-423788776.
+module.exports = [browserConfig, workerConfig];

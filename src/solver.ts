@@ -1,15 +1,8 @@
 import {simplifyMovement} from '../src/movement';
 import {NUM_ANGLES, NUM_RINGS, Ring} from '../src/ring';
-import type {RingData} from '../pkg/solver';
-type Solver = typeof import('../pkg/solver');
-let solver: Solver | null = null;
-
-async function getSolver(): Promise<Solver> {
-  if (solver === null) {
-    solver = await import('../pkg/solver');
-  }
-  return solver;
-}
+import type {RingData, Solution, SolverOutput} from '../pkg/solver';
+// import {solve} from 'worker-loader!../pkg/solver.js';
+// import type {solve} from '../pkg/solver';
 
 function getRingData(ring: Ring): RingData {
   const ringData: RingData = [0, 0, 0, 0];
@@ -23,12 +16,46 @@ function getRingData(ring: Ring): RingData {
   return ringData;
 }
 
-export async function solve(ring: Ring) {
-  const solver = await getSolver();
-  const solution = solver.solve(getRingData(ring));
-  if (solution === null) {
-    console.log('No solution found');
-    return;
+export class Solver {
+  private worker_: Worker | null = null;
+
+  private async getWorker(): Promise<Worker> {
+    // const workerConstructor = await ((import(
+    //   './worker'
+    //   // 'worker-loader!../pkg/solver'
+    // ) as unknown) as Promise<typeof Worker>);
+    if (this.worker_ === null) {
+      const w = new Worker('./worker.js');
+      w.onmessage = w.onerror = w.onmessageerror = console.error;
+      this.worker_ = w;
+      // eslint-disable-next-line node/no-unpublished-require
+      // this.worker_ = new workerConstructor('');
+    }
+    return this.worker_;
   }
-  console.log({...solution, moves: solution.moves.map(simplifyMovement)});
+
+  async solve(ring: Ring): Promise<Solution | null> {
+    const worker = await this.getWorker();
+    const channel = new MessageChannel();
+    worker.postMessage({ondone: channel.port2, ringData: getRingData(ring)}, [
+      channel.port2,
+    ]);
+    return new Promise((resolve, reject) => {
+      channel.port1.onmessage = (e: SolverOutput) => {
+        if (e.data.type === 'done') {
+          const s = e.data.solution;
+          if (s === null) {
+            resolve(null);
+          } else {
+            resolve({...s, moves: s.moves.map(simplifyMovement)});
+          }
+        } else {
+          reject(e.data.error);
+        }
+      };
+      channel.port1.onmessageerror = e => {
+        reject(e.data);
+      };
+    });
+  }
 }

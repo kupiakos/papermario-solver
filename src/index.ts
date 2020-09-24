@@ -1,7 +1,8 @@
 import {Ring} from './ring';
 import {Cursor} from './cursor';
 import {MoveHistory} from './movement';
-import {solve} from './solver';
+import {Solver} from './solver';
+// import {solve} from './solver';
 
 function getNotNullById<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -29,7 +30,10 @@ function main() {
 
   overlay.addEventListener('mousedown', ring.onMouseDown.bind(ring));
   document.addEventListener('keydown', cursor.onKeyDown.bind(cursor));
-  getNotNullById('solve').addEventListener('click', () => solve(ring));
+  const solver = new Solver();
+  getNotNullById('solve').addEventListener('click', async () =>
+    console.log(await solver.solve(ring))
+  );
 }
 
 window.addEventListener('load', main);

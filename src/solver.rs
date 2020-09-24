@@ -13,20 +13,6 @@ type Result<T> = std::result::Result<T, JsValue>;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-// TODO: Have the typescript types custom exported correctly.
-// Had trouble with wasm_bindgen complaining with function signatures.
-#[wasm_bindgen(typescript_custom_section)]
-const TYPES: &'static str = r#"
-import type {RingMovement} from '../src/movement';
-export type RingData = [number, number, number, number];
-interface Solution {
-    moves: RingMovement[];
-    ring: RingData;
-}
-
-export function solve(ring: RingData): Solution | null;
-"#;
-
 type Ring = [u16; 4];
 const NUM_RINGS: u16 = 4;
 const NUM_ANGLES: u16 = 12;
@@ -330,6 +316,34 @@ fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(ring: Ring, 
     }
     None
 }
+
+// TODO: Have the typescript types custom exported correctly.
+// Had trouble with wasm_bindgen complaining with function signatures.
+#[wasm_bindgen(typescript_custom_section)]
+const TYPES: &'static str = r#"
+import type {RingMovement} from '../src/movement';
+export type RingData = [number, number, number, number];
+interface Solution {
+    moves: RingMovement[];
+    ring: RingData;
+}
+interface SolverInput {
+    ondone: MessagePort;
+    ringData: RingData;
+}
+interface SolverDone {
+    type: 'done';
+    solution: Solution | null;
+}
+interface SolverError {
+    type: 'error';
+    error: any;
+}
+type SolverOutput = MessageEvent<SolverDone | SolverError>;
+export type SolverWorker = Worker;
+
+export function solve(ringData: RingData): Solution | null;
+"#;
 
 #[wasm_bindgen(skip_typescript)]
 pub fn solve(ring: JsValue) -> Result<JsValue> {
