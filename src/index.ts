@@ -52,7 +52,7 @@ function main() {
       for (const move of solution.moves) {
         await ring.animateMove(move);
         moveHistory.addMovement(move);
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 250));
       }
       cursor.show();
       solveButton.innerText = 'Solved!';
