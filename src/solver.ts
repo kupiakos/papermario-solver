@@ -1,8 +1,7 @@
 import {simplifyMovement} from '../src/movement';
 import {NUM_ANGLES, NUM_RINGS, Ring} from '../src/ring';
 import type {RingData, Solution, SolverOutput} from '../pkg/solver';
-// import {solve} from 'worker-loader!../pkg/solver.js';
-// import type {solve} from '../pkg/solver';
+export type {Solution};
 
 function getRingData(ring: Ring): RingData {
   const ringData: RingData = [0, 0, 0, 0];

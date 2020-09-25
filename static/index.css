@@ -196,6 +196,10 @@ footer {
     }
 }
 
+#solve-button.error {
+    background-color: #c2403b;
+}
+
 .hidden {
     visibility: hidden;
 }

@@ -1,7 +1,7 @@
 import {Ring} from './ring';
 import {Cursor} from './cursor';
 import {MoveHistory} from './movement';
-import {Solver} from './solver';
+import {Solver, Solution} from './solver';
 
 function getNotNullById<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -36,7 +36,15 @@ function main() {
   solveButton.addEventListener('click', async () => {
     solveButton.classList.add('solving');
     solveButton.innerText = 'Solving';
-    const solution = await solver.solve(ring);
+    let solution: Solution | null;
+    try {
+      solution = await solver.solve(ring);
+    } catch (e) {
+      solveButton.innerText = 'Error!';
+      solveButton.classList.add('error');
+      solveButton.classList.remove('solving');
+      throw e;
+    }
     if (solution) {
       console.log(solution);
       cursor.hide();

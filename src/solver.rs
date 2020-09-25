@@ -1,6 +1,7 @@
 use serde::Serialize;
 use arrayvec::ArrayVec;
 use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 // use serde_wasm_bindgen;
 use wasm_bindgen::prelude::*;
 
@@ -16,7 +17,8 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 type Ring = [u16; 4];
 const NUM_RINGS: u16 = 4;
 const NUM_ANGLES: u16 = 12;
-const MAX_TURNS: u16 = 3;
+const MIN_TURNS: u16 = 3;
+const MAX_TIME: Duration = Duration::from_secs(7);
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all="camelCase")]
@@ -272,17 +274,21 @@ export function solve(ringData: RingData): Solution | null;
 #[wasm_bindgen(skip_typescript)]
 pub fn solve(ring: JsValue) -> Result<JsValue> {
     let ring: Ring = serde_wasm_bindgen::from_value(ring)?;
-    let solution = find_solution(ring, MAX_TURNS);
+    let solution = find_solution(ring, MIN_TURNS, MAX_TIME);
     Ok(match solution {
         Some(solution) => serde_wasm_bindgen::to_value(&solution)?,
         None => JsValue::null(),
     })
 }
 
-fn find_solution(ring: Ring, max_turns: u16) -> Option<Solution> {
-    for turn in 0..=max_turns {
+fn find_solution(ring: Ring, min_turns: u16, max_time: Duration) -> Option<Solution> {
+    let start_time = Instant::now();
+    for turn in 0.. {
         if let Some(solution) = find_solution_at_turn(ring, turn) {
             return Some(solution);
+        }
+        if turn > min_turns && Instant::now() - start_time > max_time {
+            break;
         }
     }
     None
