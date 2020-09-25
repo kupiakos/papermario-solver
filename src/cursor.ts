@@ -27,13 +27,19 @@ const CURSOR_FOCUSED = 'rgba(82, 148, 250, 0.8)';
 const CURSOR_RING_MOVE_ANIMATION_TIME = 0.05;
 const CURSOR_SHIFT_MOVE_ANIMATION_TIME = 0.1;
 
-export class Cursor {
-  type: CursorMode;
-  pos: RingPosition;
+enum CursorState {
+  UNFOCUSED = 0,
+  FOCUSED = 1,
+  HIDDEN = 2,
+}
 
-  private focused_: boolean;
-  private currentMovement_: RingMovement | null;
-  private animatingMovement_: CursorMovement | null;
+export class Cursor {
+  type: CursorMode = 'ring';
+  pos: RingPosition = {r: 0, th: 0};
+
+  private state_: CursorState = CursorState.UNFOCUSED;
+  private currentMovement_: RingMovement | null = null;
+  private animatingMovement_: CursorMovement | null = null;
   private readonly animation_: Animation;
   private readonly ring_: Ring;
   private readonly moveHistory_: MoveHistory;
@@ -44,11 +50,7 @@ export class Cursor {
     moveHistory: MoveHistory,
     controlsDisplay: HTMLElement
   ) {
-    this.type = 'ring';
-    this.pos = {r: 0, th: 0};
-    this.focused_ = false;
     this.ring_ = ring;
-    this.animatingMovement_ = null;
     this.animation_ = new Animation(
       CURSOR_RING_MOVE_ANIMATION_TIME,
       amount => this.drawAnimationFrame(amount),
@@ -63,13 +65,16 @@ export class Cursor {
         this.draw();
       }
     );
-    this.currentMovement_ = null;
     this.moveHistory_ = moveHistory;
     this.controlsDisplay_ = controlsDisplay;
   }
 
+  get hidden(): boolean {
+    return this.state_ === CursorState.HIDDEN;
+  }
+
   get focused(): boolean {
-    return this.focused_;
+    return this.state_ === CursorState.FOCUSED;
   }
 
   switchType() {
@@ -144,6 +149,9 @@ export class Cursor {
       FRAME.width * 1.5,
       FRAME.height * 1.5
     );
+    if (this.hidden) {
+      return;
+    }
     ctx.fillStyle = this.focused ? CURSOR_FOCUSED : CURSOR_UNFOCUSED;
     if (this.type === 'ring') {
       this.drawRing_(anim_amount, ctx);
@@ -182,9 +190,33 @@ export class Cursor {
     ctx.fill();
   }
 
+  // Hide the cursor and prevent it from being used.
+  hide() {
+    if (this.hidden) {
+      return;
+    }
+    if (this.focused) {
+      this.confirm();
+    }
+    if (this.state_ !== CursorState.UNFOCUSED) {
+      throw new Error('BUG: Cursor state not unfocused');
+    }
+    this.state_ = CursorState.HIDDEN;
+    this.draw();
+    this.updateControls();
+  }
+
+  show() {
+    if (this.hidden) {
+      this.state_ = CursorState.UNFOCUSED;
+    }
+    this.draw();
+    this.updateControls();
+  }
+
   // Manipulate the cursor with the keyboard.
   onKeyDown(event: KeyboardEvent) {
-    if (this.ring_.isBusy()) {
+    if (this.ring_.isBusy() || this.hidden) {
       return;
     }
     if (event.key === 'Enter' && !this.focused) {
@@ -193,9 +225,10 @@ export class Cursor {
       this.draw();
     } else if (event.key === ' ') {
       if (this.focused) {
-        this.moveHistory_.addMovement(this.currentMovement_);
+        this.confirm();
+      } else {
+        this.switchFocus();
       }
-      this.switchFocus();
     } else if (event.key === 'Backspace' || event.key === 'Escape') {
       if (this.focused) {
         this.cancel();
@@ -216,6 +249,13 @@ export class Cursor {
     }
   }
 
+  // Confirm a planned movement with the cursor.
+  // Precondition: this.focused.
+  private confirm() {
+    this.moveHistory_.addMovement(this.currentMovement_);
+    this.switchFocus();
+  }
+
   // Cancel a planned movement with the cursor.
   // Precondition: this.focused.
   private cancel() {
@@ -225,9 +265,10 @@ export class Cursor {
       return;
     }
     const movement = reverseMovement(this.currentMovement_);
-    this.ring_.move(movement, AnimationMode.UNDO);
+    this.ring_
+      .animateMove(movement, AnimationMode.UNDO)
+      .then(() => this.switchFocus());
     this.ring_.drawGroup(movement);
-    this.ring_.onReady(() => this.switchFocus());
     this.currentMovement_ = null;
     this.updateControls();
   }
@@ -242,13 +283,17 @@ export class Cursor {
     if (movement === null) {
       return;
     }
-    this.ring_.move(reverseMovement(movement), AnimationMode.UNDO);
+    this.ring_.animateMove(reverseMovement(movement), AnimationMode.UNDO);
     this.ring_.drawGroup(movement);
     this.updateControls();
   }
 
+  // Precondition: !this.hidden.
   private switchFocus() {
-    this.focused_ = !this.focused_;
+    if (this.hidden) {
+      return;
+    }
+    this.state_ = this.focused ? CursorState.UNFOCUSED : CursorState.FOCUSED;
     this.currentMovement_ = null;
     this.draw();
     this.updateControls();
@@ -265,6 +310,11 @@ export class Cursor {
       }
     }
     this.controlsDisplay_.setAttribute('state', state);
+    if (this.hidden) {
+      this.controlsDisplay_.classList.add('hidden');
+    } else {
+      this.controlsDisplay_.classList.remove('hidden');
+    }
   }
 
   // Precondition: this.focused
@@ -297,7 +347,7 @@ export class Cursor {
       };
     }
     this.currentMovement_ = combineMovements(this.currentMovement_, movement);
-    this.ring_.move(movement, AnimationMode.NORMAL);
+    this.ring_.animateMove(movement, AnimationMode.NORMAL);
     this.ring_.drawGroup(movement);
   }
 

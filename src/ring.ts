@@ -220,15 +220,22 @@ export class Ring {
         if (!this.currentMovement_) {
           throw new ReferenceError('Last movement null?');
         }
-        this.move(this.currentMovement_, AnimationMode.NONE);
+        this.move(this.currentMovement_);
         if (--this.currentMovement_.amount > 0) {
           this.animation_.play();
         } else {
           this.currentMovement_ = null;
-          this.readyCallbacks_.forEach(cb => {
+          while (this.readyCallbacks_.length > 0) {
+            const cb = this.readyCallbacks_.shift();
+            if (!cb) {
+              throw new ReferenceError('cb null???');
+            }
             cb();
-          });
-          this.readyCallbacks_ = [];
+            if (this.currentMovement_ !== null) {
+              // This callback started a new movement.
+              break;
+            }
+          }
         }
       }
     );
@@ -246,25 +253,30 @@ export class Ring {
     return this.animation_.isPlaying();
   }
 
-  onReady<T>(cb: () => T): T | undefined {
-    if (!this.animation_.isPlaying()) {
-      return cb();
+  async waitUntilReady(): Promise<void> {
+    if (!this.isBusy()) {
+      return Promise.resolve();
     }
-    this.readyCallbacks_.push(cb);
-    return;
+    return new Promise(resolve => this.readyCallbacks_.push(resolve));
   }
 
-  move(m: RingMovement, animate: AnimationMode = AnimationMode.NORMAL) {
+  async animateMove(
+    m: RingMovement,
+    animate: AnimationMode = AnimationMode.NORMAL
+  ): Promise<void> {
+    await this.waitUntilReady();
+    if (animate === AnimationMode.NONE) {
+      this.move(m);
+      return;
+    }
+    this.currentMovement_ = {...m};
+    this.animation_.play(animationSpeed(m.type, animate));
+    await this.waitUntilReady();
+  }
+
+  move(m: RingMovement) {
     if (m.amount < 1) {
       throw new RangeError(`move amount ${m.amount} < 1`);
-    }
-    if (animate !== AnimationMode.NONE) {
-      if (this.isBusy()) {
-        return;
-      }
-      this.currentMovement_ = {...m};
-      this.animation_.play(animationSpeed(m.type, animate));
-      return;
     }
     if (m.type === 'ring') {
       this.rotateRing(m.r, m.clockwise);
