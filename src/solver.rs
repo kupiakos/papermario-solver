@@ -298,7 +298,7 @@ fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(ring: Ring, 
     let mut shifters: ArrayVec<[RingShifts; (NUM_ANGLES / 2) as usize]> = (0..(NUM_ANGLES / 2))
         .filter_map(|th| RingShifts::new(ring, th))
         .collect();
-    for n in 0..(NUM_ANGLES / 2) {
+    for n in 0..NUM_ANGLES {
         for rotator in rotators.iter_mut() {
             let (moved, movement) = rotator.next().unwrap();
             if let Some(solution) = cb(movement, moved) {
