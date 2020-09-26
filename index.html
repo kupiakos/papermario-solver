@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper Mario Puzzle Solver Maybe</title>
+  <link rel="stylesheet" href="index.css">
+  <script type="text/javascript" src="index.js"></script>
+</head>
+<body>
+  <div class="content">
+    <h1>Paper&nbsp;Mario: Origami&nbsp;King Solver</h1>
+    <div class="overlay-box">
+      <div class="ring-moves-wrapper">
+        <h2>Ring Moves</h2>
+        <div id="ring-moves">×0</div>
+      </div>
+    </div>
+    <div id="stage">
+      <canvas id="overlay-layer" width="500" height="500"></canvas>
+      <canvas id="enemy-layer" width="500" height="500"></canvas>
+      <canvas id="cursor-layer" width="500" height="500"></canvas>
+      <canvas id="ring-layer" width="500" height="500">
+        Your browser does not support &lt;canvas&gt;!
+      </canvas>
+    </div>
+    <div id="controls" state="choosing">
+      <div class="control" state="choosing">Arrow keys: Select Ring</div>
+      <div class="control" state="moving">Arrow keys: Ring Controls</div>
+      <div class="control" state="choosing">Enter: Toggle Rotate/Slide</div>
+      <div class="control">Space: Confirm</div>
+      <div class="control">Click: Add enemy</div>
+      <div class="control" state="moving">Backspace: Cancel</div>
+      <div class="control" state="undo">Backspace: Undo</div>
+    </div>
+    <button id="solve-button">Solve</button>
+  </div>
+  <footer>Made by <a href="http://alyssa.codes">Alyssa Haroldsen</a></footer>
+</body>
+</html>

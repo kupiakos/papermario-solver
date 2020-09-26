@@ -1,0 +1,36 @@
+import { RingPosition, Ring } from './ring';
+import { MoveHistory, RingGroupType } from './movement';
+declare type CursorMode = RingGroupType;
+export declare class Cursor {
+    type: CursorMode;
+    pos: RingPosition;
+    private state_;
+    private currentMovement_;
+    private animatingMovement_;
+    private readonly animation_;
+    private readonly ring_;
+    private readonly moveHistory_;
+    private readonly controlsDisplay_;
+    constructor(ring: Ring, moveHistory: MoveHistory, controlsDisplay: HTMLElement);
+    get hidden(): boolean;
+    get focused(): boolean;
+    switchType(): void;
+    sectionSelected(type: CursorMode, index: number): boolean;
+    cellSelected({ th, r }: RingPosition): boolean;
+    move(reverse: boolean, animate?: boolean): void;
+    private drawAnimationFrame;
+    draw(anim_amount?: number, ctx?: CanvasRenderingContext2D): void;
+    private drawRing_;
+    private drawRow_;
+    hide(): void;
+    show(): void;
+    onKeyDown(event: KeyboardEvent): void;
+    private confirm;
+    private cancel;
+    private undo;
+    private switchFocus;
+    private updateControls;
+    private moveRing;
+    private arrowIsPositive;
+}
+export {};
