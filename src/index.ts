@@ -27,13 +27,19 @@ function main() {
   cursor.draw();
 
   overlay.addEventListener('mousedown', e => {
-    ring.onMouseDown(e);
+    if (solveButton.classList.contains('solving')) {
+      return;
+    }
     solveButton.innerText = 'Solve';
+    ring.onMouseDown(e);
   });
   document.addEventListener('keydown', cursor.onKeyDown.bind(cursor));
   // Prevents mouse focus, https://stackoverflow.com/a/37580028.
   solveButton.addEventListener('mousedown', e => e.preventDefault());
   solveButton.addEventListener('click', async () => {
+    if (solveButton.classList.contains('solving')) {
+      return;
+    }
     solveButton.classList.add('solving');
     solveButton.innerText = 'Solving';
     let solution: Solution | null;
