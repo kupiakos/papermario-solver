@@ -1,4 +1,34 @@
-import type {SolverInput} from '../pkg/solver';
+import type {RingMovement} from './movement';
+export type RingData = [number, number, number, number];
+
+export interface Solution {
+  moves: RingMovement[];
+  ring: RingData;
+}
+
+interface SolverInput {
+  ondone: MessagePort;
+  ringData: RingData;
+}
+
+export interface FoundSolution {
+  type: 'found';
+  solution: Solution;
+}
+
+export interface NoSolution {
+  type: 'cancelled';
+  movesTried: number;
+}
+
+export interface SolverError {
+  type: 'error';
+  error: any;
+}
+
+export type SolverOutput = FoundSolution | NoSolution;
+
+export type SolverWorker = Worker;
 export default class WebpackWorker extends Worker {
   constructor() {
     super('');
@@ -13,8 +43,8 @@ self.addEventListener('message', async (e: MessageEvent<SolverInput>) => {
   }
   const ondone = e.data.ondone;
   try {
-    const solution = solverModule.solve(e.data.ringData);
-    ondone.postMessage({type: 'done', solution: solution});
+    const out = solverModule.solve(e.data.ringData);
+    ondone.postMessage(out);
   } catch (e) {
     ondone.postMessage({type: 'error', error: e});
   }

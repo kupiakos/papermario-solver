@@ -1,9 +1,12 @@
 use serde::Serialize;
 use arrayvec::ArrayVec;
 use std::collections::VecDeque;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 // use serde_wasm_bindgen;
 use wasm_bindgen::prelude::*;
+
+mod instant;
+use instant::Instant;
 
 #[cfg(debug_assertions)]
 use web_sys::console;
@@ -18,7 +21,7 @@ type Ring = [u16; 4];
 const NUM_RINGS: u16 = 4;
 const NUM_ANGLES: u16 = 12;
 const MIN_TURNS: u16 = 3;
-const MAX_TIME: Duration = Duration::from_secs(7);
+const MAX_TIME: Duration = Duration::from_secs(5);
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all="camelCase")]
@@ -34,6 +37,14 @@ pub struct Solution {
     pub result: Ring,
     pub jump_rows: u32,
     pub hammerable_groups: u32,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all="camelCase")]
+enum SolverOutput {
+    Found { solution: Solution },
+    #[serde(rename_all="camelCase")]
+    Cancelled { moves_tried: u16 },
 }
 
 trait MaskedInt: Sized + Copy {
@@ -247,51 +258,30 @@ fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(ring: Ring, 
 // Had trouble with wasm_bindgen complaining with function signatures.
 #[wasm_bindgen(typescript_custom_section)]
 const TYPES: &'static str = r#"
-import type {RingMovement} from '../src/movement';
-export type RingData = [number, number, number, number];
-interface Solution {
-    moves: RingMovement[];
-    ring: RingData;
-}
-interface SolverInput {
-    ondone: MessagePort;
-    ringData: RingData;
-}
-interface SolverDone {
-    type: 'done';
-    solution: Solution | null;
-}
-interface SolverError {
-    type: 'error';
-    error: any;
-}
-type SolverOutput = MessageEvent<SolverDone | SolverError>;
-export type SolverWorker = Worker;
-
-export function solve(ringData: RingData): Solution | null;
+import type {RingData, SolverOutput} from '../src/worker';
+export function solve(ringData: RingData): SolverOutput;
 "#;
 
 #[wasm_bindgen(skip_typescript)]
 pub fn solve(ring: JsValue) -> Result<JsValue> {
+    // let now = Instant::now();
+    // Ok(serde_wasm_bindgen::to_value(&now.0)?)
     let ring: Ring = serde_wasm_bindgen::from_value(ring)?;
-    let solution = find_solution(ring, MIN_TURNS, MAX_TIME);
-    Ok(match solution {
-        Some(solution) => serde_wasm_bindgen::to_value(&solution)?,
-        None => JsValue::null(),
-    })
+    let output = find_solution(ring, MIN_TURNS, MAX_TIME);
+    Ok(serde_wasm_bindgen::to_value(&output)?)
 }
 
-fn find_solution(ring: Ring, min_turns: u16, max_time: Duration) -> Option<Solution> {
+fn find_solution(ring: Ring, min_turns: u16, max_time: Duration) -> SolverOutput {
     let start_time = Instant::now();
     for turn in 0.. {
         if let Some(solution) = find_solution_at_turn(ring, turn) {
-            return Some(solution);
+            return SolverOutput::Found { solution };
         }
         if turn > min_turns && Instant::now() - start_time > max_time {
-            break;
+            return SolverOutput::Cancelled { moves_tried: turn }
         }
     }
-    None
+    unreachable!()
 }
 
 fn find_solution_at_turn(ring: Ring, turn: u16) -> Option<Solution> {

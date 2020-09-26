@@ -29,9 +29,10 @@
     "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
+    "eslint": "^7.9.0",
     "mnemonist": "^0.38.0"
   },
   "engines": {
     "node": ">=10"
-}
+  }
 }

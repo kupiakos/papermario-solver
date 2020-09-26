@@ -1,7 +1,7 @@
 import {Ring} from './ring';
 import {Cursor} from './cursor';
 import {MoveHistory} from './movement';
-import {Solver, Solution} from './solver';
+import {Solver, SolverOutput} from './solver';
 
 function getNotNullById<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -28,24 +28,30 @@ function main() {
 
   overlay.addEventListener('mousedown', e => {
     ring.onMouseDown(e);
-    solveButton.innerText = 'Solve';
+    if (!solveButton.classList.contains('solving')) {
+      solveButton.innerText = 'Solve';
+    }
   });
   document.addEventListener('keydown', cursor.onKeyDown.bind(cursor));
   // Prevents mouse focus, https://stackoverflow.com/a/37580028.
   solveButton.addEventListener('mousedown', e => e.preventDefault());
   solveButton.addEventListener('click', async () => {
+    if (solveButton.classList.contains('solving')) {
+      return;
+    }
     solveButton.classList.add('solving');
     solveButton.innerText = 'Solving';
-    let solution: Solution | null;
+    let output: SolverOutput;
     try {
-      solution = await solver.solve(ring);
+      output = await solver.solve(ring);
     } catch (e) {
       solveButton.innerText = 'Error!';
       solveButton.classList.add('error');
       solveButton.classList.remove('solving');
       throw e;
     }
-    if (solution) {
+    if (output.type === 'found') {
+      const solution = output.solution;
       console.log(solution);
       cursor.hide();
       // Animate the solve.
@@ -57,7 +63,7 @@ function main() {
       cursor.show();
       solveButton.innerText = 'Solved!';
     } else {
-      solveButton.innerText = "Can't solve in 3 turns!";
+      solveButton.innerText = `Can't solve in ${output.movesTried} turns!`;
     }
     solveButton.classList.remove('solving');
   });
