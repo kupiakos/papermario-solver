@@ -63,7 +63,7 @@ function main() {
       cursor.show();
       solveButton.innerText = 'Solved!';
     } else {
-      solveButton.innerText = "Can't solve in 3 turns!";
+      solveButton.innerText = "Can't solve in 4 turns!";
     }
     solveButton.classList.remove('solving');
   });
