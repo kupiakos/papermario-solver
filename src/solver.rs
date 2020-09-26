@@ -1,8 +1,6 @@
 use serde::Serialize;
 use arrayvec::ArrayVec;
 use std::collections::VecDeque;
-use std::time::{Duration, Instant};
-// use serde_wasm_bindgen;
 use wasm_bindgen::prelude::*;
 
 #[cfg(debug_assertions)]
@@ -17,8 +15,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 type Ring = [u16; 4];
 const NUM_RINGS: u16 = 4;
 const NUM_ANGLES: u16 = 12;
-const MIN_TURNS: u16 = 3;
-const MAX_TIME: Duration = Duration::from_secs(7);
+const MAX_TURNS: u16 = 4;
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all="camelCase")]
@@ -247,48 +244,24 @@ fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(ring: Ring, 
 // Had trouble with wasm_bindgen complaining with function signatures.
 #[wasm_bindgen(typescript_custom_section)]
 const TYPES: &'static str = r#"
-import type {RingMovement} from '../src/movement';
-export type RingData = [number, number, number, number];
-interface Solution {
-    moves: RingMovement[];
-    ring: RingData;
-}
-interface SolverInput {
-    ondone: MessagePort;
-    ringData: RingData;
-}
-interface SolverDone {
-    type: 'done';
-    solution: Solution | null;
-}
-interface SolverError {
-    type: 'error';
-    error: any;
-}
-type SolverOutput = MessageEvent<SolverDone | SolverError>;
-export type SolverWorker = Worker;
-
+import type {RingData, Solution} from '../src/worker';
 export function solve(ringData: RingData): Solution | null;
 "#;
 
 #[wasm_bindgen(skip_typescript)]
 pub fn solve(ring: JsValue) -> Result<JsValue> {
     let ring: Ring = serde_wasm_bindgen::from_value(ring)?;
-    let solution = find_solution(ring, MIN_TURNS, MAX_TIME);
+    let solution = find_solution(ring, MAX_TURNS);
     Ok(match solution {
         Some(solution) => serde_wasm_bindgen::to_value(&solution)?,
         None => JsValue::null(),
     })
 }
 
-fn find_solution(ring: Ring, min_turns: u16, max_time: Duration) -> Option<Solution> {
-    let start_time = Instant::now();
-    for turn in 0.. {
+fn find_solution(ring: Ring, max_turns: u16) -> Option<Solution> {
+    for turn in 0..max_turns {
         if let Some(solution) = find_solution_at_turn(ring, turn) {
             return Some(solution);
-        }
-        if turn > min_turns && Instant::now() - start_time > max_time {
-            break;
         }
     }
     None

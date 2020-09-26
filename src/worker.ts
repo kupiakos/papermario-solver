@@ -1,4 +1,25 @@
-import type {SolverInput} from '../pkg/solver';
+
+import type {RingMovement} from './movement';
+
+export type RingData = [number, number, number, number];
+export interface Solution {
+    moves: RingMovement[];
+    ring: RingData;
+}
+interface SolverInput {
+    ondone: MessagePort;
+    ringData: RingData;
+}
+export interface SolverDone {
+    type: 'done';
+    solution: Solution | null;
+}
+interface SolverError {
+    type: 'error';
+    error: any;
+}
+export type SolverOutput = SolverDone | SolverError;
+export type SolverWorker = Worker;
 export default class WebpackWorker extends Worker {
   constructor() {
     super('');

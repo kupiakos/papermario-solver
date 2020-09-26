@@ -1,6 +1,6 @@
 import {simplifyMovement} from '../src/movement';
 import {NUM_ANGLES, NUM_RINGS, Ring} from '../src/ring';
-import type {RingData, Solution, SolverOutput} from '../pkg/solver';
+import type {RingData, Solution, SolverOutput} from './worker';
 export type {Solution};
 
 function getRingData(ring: Ring): RingData {
@@ -19,16 +19,10 @@ export class Solver {
   private worker_: Worker | null = null;
 
   private async getWorker(): Promise<Worker> {
-    // const workerConstructor = await ((import(
-    //   './worker'
-    //   // 'worker-loader!../pkg/solver'
-    // ) as unknown) as Promise<typeof Worker>);
     if (this.worker_ === null) {
       const w = new Worker('./worker.js');
       w.onmessage = w.onerror = w.onmessageerror = console.error;
       this.worker_ = w;
-      // eslint-disable-next-line node/no-unpublished-require
-      // this.worker_ = new workerConstructor('');
     }
     return this.worker_;
   }
@@ -40,7 +34,7 @@ export class Solver {
       channel.port2,
     ]);
     return new Promise((resolve, reject) => {
-      channel.port1.onmessage = (e: SolverOutput) => {
+      channel.port1.onmessage = (e: MessageEvent<SolverOutput>) => {
         if (e.data.type === 'done') {
           const s = e.data.solution;
           if (s === null) {
