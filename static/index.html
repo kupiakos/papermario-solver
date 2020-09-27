@@ -24,17 +24,17 @@
         Your browser does not support &lt;canvas&gt;!
       </canvas>
     </div>
-    <div id="controls" state="choosing">
-      <div id="desktop-controls">
-        <div class="control" state="choosing">Arrow keys: Select Ring</div>
-        <div class="control" state="moving">Arrow keys: Ring Controls</div>
-        <div class="control" state="choosing">Enter: Toggle Rotate/Slide</div>
-        <div class="control">Space: Confirm</div>
-        <div class="control">Click: Add enemy</div>
-        <div class="control" state="moving">Backspace: Cancel</div>
-        <div class="control" state="undo">Backspace: Undo</div>
+    <div id="controls" states="choosing">
+      <div class="desktop-controls">
+        <div class="control instruction" onstate="choosing">Arrow keys: Select Ring</div>
+        <div class="control instruction" onstate="moving">Arrow keys: Ring Controls</div>
+        <div class="control instruction" onstate="choosing">Enter: Toggle Rotate/Slide</div>
+        <div class="control instruction">Space: Confirm</div>
+        <div class="control instruction">Click: Add enemy</div>
+        <div class="control instruction" onstate="moving">Backspace: Cancel</div>
+        <div class="control instruction" onstate="undo">Backspace: Undo</div>
       </div>
-      <div id="mobile-controls">
+      <div class="mobile-controls">
         Mobile ring controls coming eventually!
       </div>
     </div>

@@ -18,6 +18,7 @@ import {
   RingMovement,
 } from './movement';
 import {Animation} from './animation';
+import {Controls, ControlState} from './controls';
 
 type CursorMode = RingGroupType;
 type CursorMovement = {type: 'ring'} | {type: 'row'; clockwise: boolean};
@@ -43,13 +44,9 @@ export class Cursor {
   private readonly animation_: Animation;
   private readonly ring_: Ring;
   private readonly moveHistory_: MoveHistory;
-  private readonly controlsDisplay_: HTMLElement;
+  private readonly controls_: Controls;
 
-  constructor(
-    ring: Ring,
-    moveHistory: MoveHistory,
-    controlsDisplay: HTMLElement
-  ) {
+  constructor(ring: Ring, moveHistory: MoveHistory, controls: Controls) {
     this.ring_ = ring;
     this.animation_ = new Animation(
       CURSOR_RING_MOVE_ANIMATION_TIME,
@@ -66,7 +63,7 @@ export class Cursor {
       }
     );
     this.moveHistory_ = moveHistory;
-    this.controlsDisplay_ = controlsDisplay;
+    this.controls_ = controls;
   }
 
   get hidden(): boolean {
@@ -300,21 +297,19 @@ export class Cursor {
   }
 
   private updateControls() {
-    let state: string;
+    const states: ControlState[] = [];
     if (this.focused) {
-      state = 'moving';
+      states.push('moving');
     } else {
-      state = 'choosing';
+      states.push('choosing');
       if (!this.moveHistory_.empty) {
-        state += ' undo';
+        states.push('undo');
       }
     }
-    this.controlsDisplay_.setAttribute('state', state);
     if (this.hidden) {
-      this.controlsDisplay_.classList.add('hidden');
-    } else {
-      this.controlsDisplay_.classList.remove('hidden');
+      states.push('hidden');
     }
+    this.controls_.setStates(states);
   }
 
   // Precondition: this.focused

@@ -67,19 +67,22 @@ body {
 
 .control {
     display: inline-block;
-    /* display: none; */
     white-space: nowrap;
     margin: 2px 5px;
 }
 
-.control[state] {
+.control[onstate] {
     display: none;
 }
 
-#controls[state~=choosing] .control[state~=choosing],
-#controls[state~=moving] .control[state~=moving],
-#controls[state~=undo] .control[state~=undo] {
+#controls[states~=choosing] .control[onstate~=choosing],
+#controls[states~=moving] .control[onstate~=moving],
+#controls[states~=undo] .control[onstate~=undo] {
     display: inline-block
+}
+
+#controls[states~=hidden] {
+    visibility: hidden;
 }
 
 .overlay-box, overlay-box::before {
@@ -204,11 +207,7 @@ footer {
     background-color: #c2403b;
 }
 
-.hidden {
-    visibility: hidden;
-}
-
-#mobile-controls {
+.mobile-controls {
     display: none;
     font-size: 14px;
 }
@@ -249,11 +248,11 @@ footer {
         position: absolute;
     }
 
-    .overlay-box, #desktop-controls, #cursor-layer {
+    .overlay-box, .desktop-controls, #cursor-layer {
         display: none;
     }
 
-    #mobile-controls {
+    .mobile-controls {
         display: block;
     }
 }

@@ -2,6 +2,7 @@ import {Ring} from './ring';
 import {Cursor} from './cursor';
 import {MoveHistory} from './movement';
 import {Solver, Solution} from './solver';
+import {Controls} from './controls';
 
 function getNotNullById<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -20,7 +21,8 @@ function main() {
     overlay,
   });
   const moveHistory = new MoveHistory(getNotNullById('ring-moves'));
-  const cursor = new Cursor(ring, moveHistory, getNotNullById('controls'));
+  const controls = new Controls(getNotNullById('controls'));
+  const cursor = new Cursor(ring, moveHistory, controls);
   const solver = new Solver();
   const solveButton = getNotNullById('solve-button');
   ring.draw();
