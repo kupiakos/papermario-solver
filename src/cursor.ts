@@ -211,9 +211,13 @@ export class Cursor {
     this.updateControls();
   }
 
+  isBusy(): boolean {
+    return this.ring_.isBusy() || this.hidden;
+  }
+
   // Manipulate the cursor with the keyboard.
   onKeyDown(event: KeyboardEvent) {
-    if (this.ring_.isBusy() || this.hidden) {
+    if (this.isBusy()) {
       return;
     }
     if (event.key === 'Enter' && !this.focused) {
@@ -227,11 +231,7 @@ export class Cursor {
         this.switchFocus();
       }
     } else if (event.key === 'Backspace' || event.key === 'Escape') {
-      if (this.focused) {
-        this.cancel();
-      } else {
-        this.undo();
-      }
+      this.cancel();
     } else {
       if (this.focused) {
         this.moveRing(event.key);
@@ -253,9 +253,22 @@ export class Cursor {
     this.switchFocus();
   }
 
+  // Cancel or undo, based on the focus state of the cursor.
+  // Equivalent to pressing 'B'.
+  cancel() {
+    if (this.isBusy()) {
+      return;
+    }
+    if (this.focused) {
+      this.cancelPlanned();
+    } else {
+      this.undo();
+    }
+  }
+
   // Cancel a planned movement with the cursor.
   // Precondition: this.focused.
-  private cancel() {
+  private cancelPlanned() {
     if (this.currentMovement_ === null) {
       this.switchFocus();
       // We haven't moved in this focus yet, nothing to undo.

@@ -25,7 +25,7 @@
       </canvas>
     </div>
     <div id="controls" states="choosing">
-      <div class="desktop-controls">
+      <div class="desktop-only">
         <div class="control instruction" onstate="choosing">Arrow keys: Select Ring</div>
         <div class="control instruction" onstate="moving">Arrow keys: Ring Controls</div>
         <div class="control instruction" onstate="choosing">Enter: Toggle Rotate/Slide</div>
@@ -34,11 +34,14 @@
         <div class="control instruction" onstate="moving">Backspace: Cancel</div>
         <div class="control instruction" onstate="undo">Backspace: Undo</div>
       </div>
-      <div class="mobile-controls">
+      <div id="mobile-controls" class="mobile-only">
         Mobile ring controls coming eventually!
       </div>
+      <div class="buttons">
+        <button id="undo-button" class="control" onstate="undo">Undo</button>
+        <button id="solve-button">Solve</button>
+      </div>
     </div>
-    <button id="solve-button">Solve</button>
   </div>
   <footer>
     Made by <a href="http://alyssa.codes">Alyssa Haroldsen</a>.

@@ -69,6 +69,13 @@ function main() {
     }
     solveButton.classList.remove('solving');
   });
+
+  const undoButton = getNotNullById('undo-button');
+  undoButton.addEventListener('mousedown', e => e.preventDefault());
+  undoButton.addEventListener('click', () => {
+    solveButton.innerText = 'Solve';
+    cursor.cancel();
+  });
 }
 
 window.addEventListener('load', main);
