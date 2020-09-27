@@ -27,14 +27,14 @@ export interface RingPosition {
   th: number;
 }
 
-export const R0 = 77;
+export const R0 = 60;
 export const CELL_WIDTH = 32;
 
 export const NUM_RINGS = 4;
 export const NUM_ANGLES = 12;
 export const NUM_CELLS = NUM_RINGS * NUM_ANGLES;
 export const CELL_ANGLE = (2 * Math.PI) / NUM_ANGLES;
-export const OUTSIDE_WIDTH = 45;
+export const OUTSIDE_WIDTH = 40;
 
 export const FRAME: Size = {
   width: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
