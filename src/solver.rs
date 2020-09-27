@@ -240,14 +240,6 @@ fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(ring: Ring, 
     None
 }
 
-// TODO: Have the typescript types custom exported correctly.
-// Had trouble with wasm_bindgen complaining with function signatures.
-#[wasm_bindgen(typescript_custom_section)]
-const TYPES: &'static str = r#"
-import type {RingData, Solution} from '../src/worker';
-export function solve(ringData: RingData): Solution | null;
-"#;
-
 #[wasm_bindgen(skip_typescript)]
 pub fn solve(ring: JsValue) -> Result<JsValue> {
     let ring: Ring = serde_wasm_bindgen::from_value(ring)?;

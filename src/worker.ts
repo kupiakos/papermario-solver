@@ -26,11 +26,13 @@ export default class WebpackWorker extends Worker {
   }
 }
 
-let solverModule: typeof import('../pkg/solver') | null = null;
+type SolverModule = {solve(ringData: RingData): Solution | null};
+let solverModule: SolverModule | null = null;
 
 self.addEventListener('message', async (e: MessageEvent<SolverInput>) => {
   if (solverModule === null) {
-    solverModule = await import('../pkg/solver');
+    // @ts-ignore
+    solverModule = await import('../pkg/solver') as SolverModule;
   }
   const ondone = e.data.ondone;
   try {

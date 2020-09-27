@@ -1,5 +1,5 @@
-import {simplifyMovement} from '../src/movement';
-import {NUM_ANGLES, NUM_RINGS, Ring} from '../src/ring';
+import {simplifyMovement} from './movement';
+import {NUM_ANGLES, NUM_RINGS, Ring} from './ring';
 import type {RingData, Solution, SolverOutput} from './worker';
 export type {Solution};
 
