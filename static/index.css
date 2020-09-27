@@ -204,6 +204,11 @@ footer {
     visibility: hidden;
 }
 
+#mobile-controls {
+    display: none;
+    font-size: 14px;
+}
+
 @media screen and (max-width: 500px) {
     #stage {
         width: 100%;
@@ -240,12 +245,12 @@ footer {
         position: absolute;
     }
 
-    .overlay-box h2 {
-        font-size: 16px;
+    .overlay-box, #desktop-controls, #cursor-layer {
+        display: none;
     }
 
-    .overlay-box {
-        top: 0;
+    #mobile-controls {
+        display: block;
     }
 }
 
