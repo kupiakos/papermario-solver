@@ -70,3 +70,13 @@ function main() {
 }
 
 window.addEventListener('load', main);
+
+// Calculates the internal app height, used for the footer on mobile.
+// I don't want to use JavaScript for this, but my hand has been forced.
+// See: https://stackoverflow.com/a/50683190.
+const appHeight = () => {
+  const doc = document.documentElement;
+  doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+};
+window.addEventListener('resize', appHeight);
+appHeight();
