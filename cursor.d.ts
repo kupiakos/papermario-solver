@@ -1,5 +1,6 @@
 import { RingPosition, Ring } from './ring';
 import { MoveHistory, RingGroupType } from './movement';
+import { Controls } from './controls';
 declare type CursorMode = RingGroupType;
 export declare class Cursor {
     type: CursorMode;
@@ -10,8 +11,8 @@ export declare class Cursor {
     private readonly animation_;
     private readonly ring_;
     private readonly moveHistory_;
-    private readonly controlsDisplay_;
-    constructor(ring: Ring, moveHistory: MoveHistory, controlsDisplay: HTMLElement);
+    private readonly controls_;
+    constructor(ring: Ring, moveHistory: MoveHistory, controls: Controls);
     get hidden(): boolean;
     get focused(): boolean;
     switchType(): void;
@@ -24,9 +25,11 @@ export declare class Cursor {
     private drawRow_;
     hide(): void;
     show(): void;
+    isBusy(): boolean;
     onKeyDown(event: KeyboardEvent): void;
     private confirm;
-    private cancel;
+    cancel(): void;
+    private cancelPlanned;
     private undo;
     private switchFocus;
     private updateControls;

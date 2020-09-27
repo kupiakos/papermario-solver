@@ -61,25 +61,24 @@ body {
     padding-bottom: 2rem;
 }
 
-#controls {
-    margin: 5px;
-}
-
-.control {
+.instruction {
     display: inline-block;
-    /* display: none; */
     white-space: nowrap;
     margin: 2px 5px;
 }
 
-.control[state] {
+.control[onstate] {
     display: none;
 }
 
-#controls[state~=choosing] .control[state~=choosing],
-#controls[state~=moving] .control[state~=moving],
-#controls[state~=undo] .control[state~=undo] {
+#controls[states~=choosing] .control[onstate~=choosing],
+#controls[states~=moving] .control[onstate~=moving],
+#controls[states~=undo] .control[onstate~=undo] {
     display: inline-block
+}
+
+#controls[states~=hidden] .control {
+    visibility: hidden;
 }
 
 .overlay-box, overlay-box::before {
@@ -159,9 +158,16 @@ footer {
     left: 0;
 }
 
-#solve-button {
+.buttons {
+    margin: 10px auto;
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    justify-content: center;
+}
+
+button {
     appearance: none;
-    background-color: #4CAF50;
     border: none;
     color: white;
     font-family: 'Paper Mario Headers';
@@ -170,13 +176,20 @@ footer {
     text-decoration: none;
     display: inline-block;
     font-size: 30px;
-    width: 100%;
-    max-width: 400px;
     box-shadow: 0 2px 3px 0 #222;
+    flex: 1 1 0;
 }
 
-#solve-button:active:hover {
+button:active:hover {
     box-shadow: 0 1px 1.5px 0 #222;
+}
+
+#undo-button {
+    background-color: #e7de55;
+}
+
+#solve-button {
+    background-color: #4CAF50;
 }
 
 #solve-button:active:hover, #solve-button.solving {
@@ -204,12 +217,11 @@ footer {
     background-color: #c2403b;
 }
 
-.hidden {
-    visibility: hidden;
+.mobile-only {
+    display: none;
 }
 
 #mobile-controls {
-    display: none;
     font-size: 14px;
 }
 
@@ -249,12 +261,12 @@ footer {
         position: absolute;
     }
 
-    .overlay-box, #desktop-controls, #cursor-layer {
+    .overlay-box, .desktop-only, #cursor-layer {
         display: none;
     }
 
-    #mobile-controls {
-        display: block;
+    .mobile-only {
+        display: inherit;
     }
 }
 
