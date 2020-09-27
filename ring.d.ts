@@ -16,13 +16,13 @@ export interface RingPosition {
     r: number;
     th: number;
 }
-export declare const R0 = 77;
+export declare const R0 = 60;
 export declare const CELL_WIDTH = 32;
 export declare const NUM_RINGS = 4;
 export declare const NUM_ANGLES = 12;
 export declare const NUM_CELLS: number;
 export declare const CELL_ANGLE: number;
-export declare const OUTSIDE_WIDTH = 45;
+export declare const OUTSIDE_WIDTH = 40;
 export declare const FRAME: Size;
 export declare enum AnimationMode {
     NONE = 0,

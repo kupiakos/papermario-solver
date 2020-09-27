@@ -1,4 +1,4 @@
-import { Ring } from '../src/ring';
+import { Ring } from './ring';
 import type { Solution } from './worker';
 export type { Solution };
 export declare class Solver {
