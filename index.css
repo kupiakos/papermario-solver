@@ -1,4 +1,8 @@
 
+:root {
+    --app-height: 100%;
+}
+
 @font-face {
     font-family: 'Paper Mario Headers';
     font-style: normal;
@@ -133,8 +137,8 @@ footer {
     position: absolute;
     bottom: 0;
     width: 100%;
-    height: 2rem;
-    line-height: 2rem;
+    height: fit-content;
+    line-height: 1.5rem;
     font-size: 14px;
     text-align: center;
     vertical-align: middle;
@@ -204,6 +208,11 @@ footer {
     visibility: hidden;
 }
 
+#mobile-controls {
+    display: none;
+    font-size: 14px;
+}
+
 @media screen and (max-width: 500px) {
     #stage {
         width: 100%;
@@ -228,24 +237,24 @@ footer {
         box-shadow: none;
         background-image: none;
         background-color: transparent;
-        min-height: 100vh;
+        min-height: var(--app-height);
         margin: 0;
     }
 
     .content {
-        padding: 0 0 2rem 0;
+        padding: 0 0 3rem 0;
     }
 
     footer {
         position: absolute;
     }
 
-    .overlay-box h2 {
-        font-size: 16px;
+    .overlay-box, #desktop-controls, #cursor-layer {
+        display: none;
     }
 
-    .overlay-box {
-        top: 0;
+    #mobile-controls {
+        display: block;
     }
 }
 
