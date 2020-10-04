@@ -617,7 +617,7 @@ export class Ring {
     if (!this.currentMovement_) {
       throw new ReferenceError('Last movement null?');
     }
-    this.model.move(this.currentMovement_);
+    this.model.move({...this.currentMovement_, amount: 1});
     if (--this.currentMovement_.amount > 0) {
       // We're not done moving yet, replay the animation.
       this.animation_.play();
