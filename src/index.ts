@@ -25,7 +25,7 @@ function main() {
   const cursor = new Cursor(ring, moveHistory, controls);
   const solver = new Solver();
   const solveButton = getNotNullById('solve-button');
-  ring.draw();
+  ring.view.draw();
   cursor.draw();
 
   overlay.addEventListener('mousedown', e => {
@@ -46,7 +46,7 @@ function main() {
     solveButton.innerText = 'Solving';
     let solution: Solution | null;
     try {
-      solution = await solver.solve(ring);
+      solution = await solver.solve(ring.model);
     } catch (e) {
       solveButton.innerText = 'Error!';
       solveButton.classList.add('error');
