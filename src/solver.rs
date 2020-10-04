@@ -297,7 +297,7 @@ pub fn solve(ring: JsValue) -> Result<JsValue> {
 /// Find a solution with the minimum number of turns,, given a max number of turns allowed.
 /// This implements an IDDFS, useful for very wide, shallow trees like this solution space.
 fn find_solution(ring: Ring, max_turns: u16) -> Option<Solution> {
-    for turn in 0..max_turns {
+    for turn in 0..=max_turns {
         if let Some(solution) = find_solution_at_turn(ring, turn) {
             return Some(solution);
         }
