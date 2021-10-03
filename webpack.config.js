@@ -55,7 +55,7 @@ const workerConfig = {
       withTypescript: true,
     }),
   ],
-  experiments: { asyncWebAssembly: true }
+  experiments: {asyncWebAssembly: true},
 };
 
 // See https://github.com/webpack/webpack/issues/7647#issuecomment-423788776.

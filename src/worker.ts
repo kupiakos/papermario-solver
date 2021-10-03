@@ -2,20 +2,20 @@ import type {RingMovement} from './movement';
 
 export type RingData = [number, number, number, number];
 export interface Solution {
-    moves: RingMovement[];
-    ring: RingData;
+  moves: RingMovement[];
+  ring: RingData;
 }
 interface SolverInput {
-    ondone: MessagePort;
-    ringData: RingData;
+  ondone: MessagePort;
+  ringData: RingData;
 }
 export interface SolverDone {
-    type: 'done';
-    solution: Solution | null;
+  type: 'done';
+  solution: Solution | null;
 }
 interface SolverError {
-    type: 'error';
-    error: any;
+  type: 'error';
+  error: unknown;
 }
 export type SolverOutput = SolverDone | SolverError;
 export type SolverWorker = Worker;
@@ -30,8 +30,9 @@ let solverModule: SolverModule | null = null;
 
 self.addEventListener('message', async (e: MessageEvent<SolverInput>) => {
   if (solverModule === null) {
-    // @ts-ignore
-    solverModule = await import('../pkg/solver') as SolverModule;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore: needed for black magic
+    solverModule = (await import('../pkg/solver')) as SolverModule;
   }
   const ondone = e.data.ondone;
   try {
