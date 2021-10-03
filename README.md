@@ -5,6 +5,8 @@ See it running live at https://kupiakos.github.io/papermario-solver/
 
 ## Setting up your workspace
 ```
+$ # install wasm-pack
+$ curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 $ npm run install
 ```
 

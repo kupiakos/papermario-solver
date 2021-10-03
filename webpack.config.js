@@ -30,7 +30,7 @@ const browserConfig = {
     path: dist,
   },
   devServer: {
-    contentBase: dist,
+    static: dist,
     port: 8000,
   },
   plugins: [
@@ -55,6 +55,7 @@ const workerConfig = {
       withTypescript: true,
     }),
   ],
+  experiments: { asyncWebAssembly: true }
 };
 
 // See https://github.com/webpack/webpack/issues/7647#issuecomment-423788776.

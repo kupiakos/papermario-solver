@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "build": "webpack --mode=production",
-    "start": "webpack-dev-server --no-inline --mode=development",
+    "start": "webpack-dev-server --mode=development",
     "check": "gts check",
     "clean": "rimraf dist/* pkg target",
     "fix": "gts fix",
@@ -31,9 +31,9 @@
     "rimraf": "^3.0.2",
     "ts-loader": "^8.0.4",
     "typescript": "^4.0.3",
-    "webpack": "^4.44.2",
-    "webpack-cli": "^3.1.2",
-    "webpack-dev-server": "^3.11.0"
+    "webpack": "^5.56.0",
+    "webpack-cli": "^4",
+    "webpack-dev-server": "^4.3.0"
   },
   "dependencies": {
     "mnemonist": "^0.38.0"
