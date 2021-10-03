@@ -1,5 +1,5 @@
-use serde::Serialize;
 use arrayvec::ArrayVec;
+use serde::Serialize;
 use std::collections::VecDeque;
 use wasm_bindgen::prelude::*;
 
@@ -18,14 +18,22 @@ const NUM_ANGLES: u16 = 12;
 const MAX_TURNS: u16 = 4;
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all="camelCase")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum RingMovement {
-    Ring { r: u16, amount: i16, clockwise: bool },
-    Row { th: u16, amount: i16, outward: bool },
+    Ring {
+        r: u16,
+        amount: i16,
+        clockwise: bool,
+    },
+    Row {
+        th: u16,
+        amount: i16,
+        outward: bool,
+    },
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type", rename_all="camelCase")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub struct Solution {
     pub moves: VecDeque<RingMovement>,
     pub result: Ring,
@@ -99,11 +107,13 @@ impl<T: MaskedInt> Iterator for ZigZagBits<T> {
     fn next(&mut self) -> Option<Self::Item> {
         let new_amount = -self.amount + ((self.amount <= 0) as i16);
         let diff = new_amount - self.amount;
+
         #[cfg(debug_assertions)]
         console::log_3(
             &JsValue::from(self.amount),
             &JsValue::from(new_amount),
-            &JsValue::from(diff));
+            &JsValue::from(diff),
+        );
         self.data = if diff > 0 {
             self.data.rotate_left(diff as u16)
         } else {
@@ -127,7 +137,11 @@ impl RingRotations {
             return None;
         }
         let subring_iter = ZigZagBits::new(subring);
-        Some(RingRotations {ring, r, subring_iter})
+        Some(RingRotations {
+            ring,
+            r,
+            subring_iter,
+        })
     }
 }
 
@@ -137,17 +151,18 @@ impl Iterator for RingRotations {
         let (subring, amount) = self.subring_iter.next()?;
         self.ring[self.r as usize] = subring.value();
         #[cfg(debug_assertions)]
-        console::log_1(
-            &JsValue::from(&format!(
-                "r: {}, amount: {}, \n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
-                self.r, amount, self.ring[3], self.ring[2], self.ring[1], self.ring[0]
-            )),
-        );
-        Some((self.ring, RingMovement::Ring {
-            r: self.r,
-            amount: amount.abs(),
-            clockwise: amount > 0,
-        }))
+        console::log_1(&JsValue::from(&format!(
+            "r: {}, amount: {}, \n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
+            self.r, amount, self.ring[3], self.ring[2], self.ring[1], self.ring[0]
+        )));
+        Some((
+            self.ring,
+            RingMovement::Ring {
+                r: self.r,
+                amount: amount.abs(),
+                clockwise: amount > 0,
+            },
+        ))
     }
 }
 
@@ -182,7 +197,7 @@ impl RingShifts {
             return None;
         }
         let row_iter = ZigZagBits::new(Row(row));
-        Some(RingShifts {ring, th, row_iter})
+        Some(RingShifts { ring, th, row_iter })
     }
 }
 
@@ -200,21 +215,25 @@ impl Iterator for RingShifts {
             *subring = (*subring & !(1 << (th + 6))) | (high << (th + 6));
         }
         #[cfg(debug_assertions)]
-        console::log_1(
-            &JsValue::from(&format!(
-                "th: {}, amount: {}, row: {:08b}\n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
-                self.th, amount, row, self.ring[3], self.ring[2], self.ring[1], self.ring[0]
-            )),
-        );
-        Some((self.ring, RingMovement::Row {
-            th: self.th,
-            amount: amount.abs(),
-            outward: amount > 0,
-        }))
+        console::log_1(&JsValue::from(&format!(
+            "th: {}, amount: {}, row: {:08b}\n{:012b}\n{:012b}\n{:012b}\n{:012b}\n",
+            self.th, amount, row, self.ring[3], self.ring[2], self.ring[1], self.ring[0]
+        )));
+        Some((
+            self.ring,
+            RingMovement::Row {
+                th: self.th,
+                amount: amount.abs(),
+                outward: amount > 0,
+            },
+        ))
     }
 }
 
-fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(ring: Ring, cb: F) -> Option<Solution> {
+fn iterate_movements<F: Fn(RingMovement, Ring) -> Option<Solution>>(
+    ring: Ring,
+    cb: F,
+) -> Option<Solution> {
     let mut rotators: ArrayVec<[RingRotations; NUM_RINGS as usize]> = (0..NUM_RINGS)
         .filter_map(|r| RingRotations::new(ring, r))
         .collect();
@@ -260,7 +279,7 @@ fn find_solution(ring: Ring, max_turns: u16) -> Option<Solution> {
 }
 
 fn find_solution_at_turn(ring: Ring, turn: u16) -> Option<Solution> {
-    if turn == 0  {
+    if turn == 0 {
         return get_solution(ring);
     }
     iterate_movements(ring, |movement, moved| {
@@ -268,7 +287,7 @@ fn find_solution_at_turn(ring: Ring, turn: u16) -> Option<Solution> {
             Some(mut solution) => {
                 solution.moves.push_front(movement);
                 Some(solution)
-            },
+            }
             None => None,
         }
     })
@@ -277,8 +296,10 @@ fn find_solution_at_turn(ring: Ring, turn: u16) -> Option<Solution> {
 fn get_solution(ring: Ring) -> Option<Solution> {
     let enemies: u32 = ring.iter().copied().map(u16::count_ones).sum();
     let outer = ring[2] | ring[3];
-    let mut inner = (ring[0] | ring [1]) & !outer;
-    inner = Subring(inner).rotate_right(inner.trailing_ones() as u16).value();
+    let mut inner = (ring[0] | ring[1]) & !outer;
+    inner = Subring(inner)
+        .rotate_right(inner.trailing_ones() as u16)
+        .value();
     let actions = enemies / 4 + ((enemies % 4 != 0) as u32);
     let jump_rows = outer.count_ones();
     let mut hammerable_groups = 0;
