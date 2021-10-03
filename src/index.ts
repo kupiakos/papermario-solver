@@ -20,7 +20,7 @@ function main() {
     cursor: getNotNullById<HTMLCanvasElement>('cursor-layer'),
     overlay,
   });
-  const moveHistory = new MoveHistory(getNotNullById('ring-moves'));
+  const moveHistory = new MoveHistory(getNotNullById('move-count'));
   const controls = new Controls(getNotNullById('controls'));
   const cursor = new Cursor(ring, moveHistory, controls);
   const solver = new Solver();

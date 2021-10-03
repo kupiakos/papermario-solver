@@ -118,12 +118,12 @@ body {
     color: #444;
 }
 
-.ring-moves-wrapper {
+.move-count-wrapper {
     text-align: left;
     width: fit-content;
 }
 
-#ring-moves, #ring-moves::before {
+#move-count, #move-count::before {
     font-size: 32px;
     color: #82d681;
     font-weight: bold;
