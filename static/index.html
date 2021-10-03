@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,22 +11,18 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-179011285-1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'UA-179011285-1');
   </script>
 
 </head>
+
 <body>
   <div class="content">
+    <!-- TODO: better a11y, i8n? -->
     <h1>Paper&nbsp;Mario: Origami&nbsp;King Solver</h1>
-    <div class="overlay-box">
-      <div class="move-count-wrapper">
-        <h2>Ring Moves</h2>
-        <div id="move-count">×0</div>
-      </div>
-    </div>
     <div id="stage">
       <canvas id="overlay-layer" width="500" height="500"></canvas>
       <canvas id="enemy-layer" width="500" height="500"></canvas>
@@ -48,9 +45,31 @@
         Touch the ring to add and remove "enemies".
         Mobile ring controls coming eventually!
       </div>
-      <div class="buttons">
-        <button id="undo-button" class="control" onstate="undo">Undo</button>
-        <button id="solve-button">Solve</button>
+      <div class="solver">
+        <div class="buttons">
+          <button id="undo-button" class="control" onstate="undo">Undo</button>
+          <button id="solve-button">Solve</button>
+        </div>
+        <div class="overlay-box">
+          <div class="move-history">
+            <div class="move-count-wrapper">
+              <span class="move-count-label"><h2>Ring Moves</h2></span>
+              <span id="move-count" class="move-amount">×0</span>
+            </div>
+            <div class="historical-move">
+              <span class="move-amount" style="--amount-color: blue">×0</span>
+            </div>
+            <div class="historical-move">
+              <span class="move-amount">×1</span>
+            </div>
+            <div class="historical-move">
+              <span class="move-amount">×2</span>
+            </div>
+            <div class="historical-move">
+              <span class="move-amount">×3</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -59,4 +78,5 @@
     This project is <a href="https://github.com/kupiakos/papermario-solver/">on Github</a>!
   </footer>
 </body>
+
 </html>

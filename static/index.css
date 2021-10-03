@@ -81,7 +81,7 @@ body {
     visibility: hidden;
 }
 
-.overlay-box, overlay-box::before {
+.overlay-box, .overlay-box::before {
     background-image: url('paper.png');
     background-size: 4px 4px;
 }
@@ -89,14 +89,16 @@ body {
 .overlay-box {
     background-color: #f3f3f1;
     font-family: 'Paper Mario Headers';
-    float: right;
-    z-index: 10;
+    /* float: right; */
+    /* z-index: 10; */
     position: relative;
     box-shadow: #222 1px 1px 2px -1px;
     padding: 4px 4px 4px 30px;
     margin-right: -10px;
-    top: 50px;
-    width: 20%;
+    /* display: flex; */
+
+    /* top: 50px; */
+    width: calc(100% - 34px);
 }
 
 .overlay-box::before {
@@ -111,25 +113,50 @@ body {
     display: inline-block;
 }
 
-.overlay-box h2 {
+.move-count-label {
+    display: flex;
+    margin: 0 10px 0 0;
+    align-items: center;
+}
+
+.move-count-label h2 {
     font-weight: normal;
     font-size: 20px;
-    margin: 0;
+    margin: 0 20px 0 0;
+    display: flex;
     color: #444;
 }
 
 .move-count-wrapper {
     text-align: left;
     width: fit-content;
+    display: flex;
+    flex-direction: row;
 }
 
-#move-count, #move-count::before {
+.move-amount, .move-amount::before {
     font-size: 32px;
-    color: #82d681;
+    color: var(--amount-color, #82d681);
     font-weight: bold;
     -webkit-text-stroke: 2.5px #fff;
     text-shadow: #000 0 0 3px;
     text-align: center;
+}
+
+.move-amount {
+    /* height: 100%; */
+    /* margin-left: 10px; */
+}
+
+.historical-move {
+    display: flex;
+    padding: 5px;
+}
+
+.historical-move:not(:last-child) {
+    border: #cfcfcf;
+    border-style: none none solid none;
+    border-width: 1px;
 }
 
 footer {
@@ -158,12 +185,30 @@ footer {
     left: 0;
 }
 
-.buttons {
+.solver {
     margin: 10px auto;
     width: 100%;
     max-width: 500px;
     display: flex;
     justify-content: center;
+    flex-direction: column;
+}
+
+.buttons {
+    margin: 10px 0 2px 0;
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    justify-content: center;
+}
+
+.move-history {
+    margin: 2px 0 10px 0;
+    width: calc(100% - 10px);
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    /* justify-content: center; */
 }
 
 button {
@@ -261,7 +306,7 @@ button:active:hover {
         position: absolute;
     }
 
-    .overlay-box, .desktop-only, #cursor-layer {
+    .desktop-only, #cursor-layer {
         display: none;
     }
 

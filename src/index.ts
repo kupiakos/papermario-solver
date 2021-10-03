@@ -55,6 +55,7 @@ function main() {
     }
     if (solution) {
       console.log(solution);
+      
       cursor.hide();
       // Animate the solve.
       for (const move of solution.moves) {
