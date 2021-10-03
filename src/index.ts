@@ -1,8 +1,9 @@
-import {Ring} from './ring';
+import {DEFAULT_RING_STYLE, Ring} from './ring';
 import {Cursor} from './cursor';
 import {MoveHistory} from './movement';
 import {Solver, Solution} from './solver';
 import {Controls} from './controls';
+import {DEFAULT_RING_SETTINGS} from './ring_settings';
 
 function getNotNullById<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -14,16 +15,28 @@ function getNotNullById<T extends HTMLElement = HTMLElement>(id: string): T {
 
 function main() {
   const overlay = getNotNullById<HTMLCanvasElement>('overlay-layer');
-  const ring = new Ring({
-    enemy: getNotNullById<HTMLCanvasElement>('enemy-layer'),
-    ring: getNotNullById<HTMLCanvasElement>('ring-layer'),
-    cursor: getNotNullById<HTMLCanvasElement>('cursor-layer'),
-    overlay,
-  });
+  const ringSettings = DEFAULT_RING_SETTINGS;
+  const ringStyle = DEFAULT_RING_STYLE;
+  const ring = new Ring(
+    {
+      enemy: getNotNullById<HTMLCanvasElement>('enemy-layer'),
+      ring: getNotNullById<HTMLCanvasElement>('ring-layer'),
+      cursor: getNotNullById<HTMLCanvasElement>('cursor-layer'),
+      overlay,
+    },
+    ringSettings,
+    ringStyle
+  );
   const moveHistory = new MoveHistory(getNotNullById('move-count'));
   const controls = new Controls(getNotNullById('controls'));
-  const cursor = new Cursor(ring, moveHistory, controls);
-  const solver = new Solver();
+  const cursor = new Cursor(
+    ring,
+    moveHistory,
+    controls,
+    {cell: ringStyle.even_cell, frame: ringStyle.frame},
+    ringSettings
+  );
+  const solver = new Solver(ringSettings);
   const solveButton = getNotNullById('solve-button');
   ring.draw();
   cursor.draw();
@@ -55,7 +68,7 @@ function main() {
     }
     if (solution) {
       console.log(solution);
-      
+
       cursor.hide();
       // Animate the solve.
       for (const move of solution.moves) {

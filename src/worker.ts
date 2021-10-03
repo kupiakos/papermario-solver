@@ -1,4 +1,3 @@
-
 import type {RingMovement} from './movement';
 
 export type RingData = [number, number, number, number];

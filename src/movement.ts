@@ -1,4 +1,4 @@
-import {NUM_ANGLES, NUM_RINGS} from './ring';
+import {RingSettings} from './ring_settings';
 
 export type RingSubring = {type: 'ring'; r: number};
 export type RingRow = {type: 'row'; th: number};
@@ -9,30 +9,38 @@ export type RingRotate = RingSubring & {clockwise: boolean; amount: number};
 export type RingShift = RingRow & {outward: boolean; amount: number};
 export type RingMovement = RingRotate | RingShift;
 
-export function simplifyMovement(m: RingMovement): RingMovement {
+export function simplifyMovement(
+  m: RingMovement,
+  settings: RingSettings
+): RingMovement {
   if (m.type === 'ring') {
     if (m.amount <= 0) {
       return {...m, amount: -m.amount, clockwise: !m.clockwise};
     }
-    const amount = m.amount % NUM_ANGLES;
-    if (amount > NUM_ANGLES / 2) {
-      return {...m, amount: NUM_ANGLES - amount, clockwise: !m.clockwise};
+    const amount = m.amount % settings.num_angles;
+    if (amount > settings.num_angles / 2) {
+      return {
+        ...m,
+        amount: settings.num_angles - amount,
+        clockwise: !m.clockwise,
+      };
     }
     return {...m, amount};
   }
   if (m.amount <= 0) {
     return {...m, amount: -m.amount, outward: !m.outward};
   }
-  const amount = m.amount % (NUM_RINGS * 2);
-  if (amount > NUM_RINGS) {
-    return {...m, amount: NUM_RINGS * 2 - amount, outward: !m.outward};
+  const amount = m.amount % (settings.num_rings * 2);
+  if (amount > settings.num_rings) {
+    return {...m, amount: settings.num_rings * 2 - amount, outward: !m.outward};
   }
   return {...m, amount};
 }
 
 export function combineMovements(
   m1: RingMovement | null,
-  m2: RingMovement
+  m2: RingMovement,
+  settings: RingSettings
 ): RingMovement | null {
   if (m1 === null) {
     return m2;
@@ -47,12 +55,15 @@ export function combineMovements(
     if (amount === 0) {
       return null;
     }
-    return simplifyMovement({
-      type: 'ring',
-      amount: Math.abs(amount),
-      clockwise: amount > 0,
-      r: m1.r,
-    });
+    return simplifyMovement(
+      {
+        type: 'ring',
+        amount: Math.abs(amount),
+        clockwise: amount > 0,
+        r: m1.r,
+      },
+      settings
+    );
   } else if (m1.type === 'row' && m2.type === 'row') {
     if (m1.th !== m2.th) {
       return null;
@@ -63,12 +74,15 @@ export function combineMovements(
     if (amount === 0) {
       return null;
     }
-    return simplifyMovement({
-      type: 'row',
-      amount: Math.abs(amount),
-      outward: amount > 0,
-      th: m1.th,
-    });
+    return simplifyMovement(
+      {
+        type: 'row',
+        amount: Math.abs(amount),
+        outward: amount > 0,
+        th: m1.th,
+      },
+      settings
+    );
   }
   return null;
 }

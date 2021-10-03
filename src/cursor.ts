@@ -3,12 +3,10 @@ import {
   RingPosition,
   Ring,
   filledArc,
-  R0,
-  FRAME,
-  NUM_RINGS,
-  NUM_ANGLES,
-  CELL_WIDTH,
-  CELL_ANGLE,
+  MoveStyle,
+  RingStyle,
+  ArcStyle,
+  Size,
 } from './ring';
 import {
   combineMovements,
@@ -19,6 +17,7 @@ import {
 } from './movement';
 import {Animation} from './animation';
 import {Controls, ControlState} from './controls';
+import {DEFAULT_RING_SETTINGS, RingSettings} from './ring_settings';
 
 type CursorMode = RingGroupType;
 type CursorMovement = {type: 'ring'} | {type: 'row'; clockwise: boolean};
@@ -34,6 +33,8 @@ enum CursorState {
   HIDDEN = 2,
 }
 
+type CursorStyle = {cell: ArcStyle; frame: Size};
+
 export class Cursor {
   type: CursorMode = 'ring';
   pos: RingPosition = {r: 0, th: 0};
@@ -45,9 +46,19 @@ export class Cursor {
   private readonly ring_: Ring;
   private readonly moveHistory_: MoveHistory;
   private readonly controls_: Controls;
+  private readonly ring_settings: RingSettings;
+  private readonly style: CursorStyle;
 
-  constructor(ring: Ring, moveHistory: MoveHistory, controls: Controls) {
+  constructor(
+    ring: Ring,
+    moveHistory: MoveHistory,
+    controls: Controls,
+    style: CursorStyle,
+    ring_settings: RingSettings
+  ) {
     this.ring_ = ring;
+    this.ring_settings = ring_settings;
+    this.style = style;
     this.animation_ = new Animation(
       CURSOR_RING_MOVE_ANIMATION_TIME,
       amount => this.drawAnimationFrame(amount),
@@ -113,12 +124,17 @@ export class Cursor {
       return;
     }
     if (this.type === 'ring') {
-      this.pos = {...this.pos, r: (this.pos.r + 1) % NUM_RINGS};
+      this.pos = {
+        ...this.pos,
+        r: (this.pos.r + 1) % this.ring_settings.num_rings,
+      };
     } else {
       const d = reverse ? 1 : -1;
       this.pos = {
         ...this.pos,
-        th: (this.pos.th + d + NUM_ANGLES) % (NUM_ANGLES / 2),
+        th:
+          (this.pos.th + d + this.ring_settings.num_angles) %
+          (this.ring_settings.num_angles / 2),
       };
     }
   }
@@ -140,11 +156,12 @@ export class Cursor {
     anim_amount = 0,
     ctx: CanvasRenderingContext2D = this.ring_.getLayer('cursor')
   ) {
+    const frame = this.style.frame;
     ctx.clearRect(
-      -FRAME.width / 2,
-      -FRAME.height / 2,
-      FRAME.width * 1.5,
-      FRAME.height * 1.5
+      -frame.width / 2,
+      -frame.height / 2,
+      frame.width * 1.5,
+      frame.height * 1.5
     );
     if (this.hidden) {
       return;
@@ -161,15 +178,31 @@ export class Cursor {
     let r = this.pos.r + anim_amount;
     ctx.moveTo(0, 0);
     ctx.beginPath();
-    const boardR = R0 + r * CELL_WIDTH;
-    filledArc(ctx, 0, 0, boardR, boardR + CELL_WIDTH, 0, Math.PI * 2);
+    const boardR = this.style.cell.r0 + r * this.style.cell.width;
+    filledArc(
+      ctx,
+      0,
+      0,
+      boardR,
+      boardR + this.style.cell.width,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
-    if (r > NUM_RINGS - 1 || r < 0) {
-      r = (r + NUM_RINGS) % NUM_RINGS;
-      const boardR = R0 + r * CELL_WIDTH;
+    if (r > this.ring_settings.num_rings - 1 || r < 0) {
+      r = (r + this.ring_settings.num_rings) % this.ring_settings.num_rings;
+      const boardR = this.style.cell.r0 + r * this.style.cell.width;
       ctx.moveTo(0, 0);
       ctx.beginPath();
-      filledArc(ctx, 0, 0, boardR, boardR + CELL_WIDTH, 0, Math.PI * 2);
+      filledArc(
+        ctx,
+        0,
+        0,
+        boardR,
+        boardR + this.style.cell.width,
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     }
   }
@@ -178,10 +211,24 @@ export class Cursor {
     const th = this.pos.th;
     ctx.moveTo(0, 0);
     ctx.beginPath();
-    for (const drawTh of [th, (th + NUM_ANGLES / 2) % NUM_ANGLES]) {
-      const boardTh = (drawTh - anim_amount) * CELL_ANGLE;
-      const endR = R0 + CELL_WIDTH * NUM_RINGS;
-      filledArc(ctx, 0, 0, R0, endR, boardTh, boardTh + CELL_ANGLE);
+    for (const drawTh of [
+      th,
+      (th + this.ring_settings.num_angles / 2) % this.ring_settings.num_angles,
+    ]) {
+      const boardTh =
+        (drawTh - anim_amount) * (this.style.cell.angle ?? Math.PI * 2);
+      const endR =
+        this.style.cell.r0 +
+        this.style.cell.width * this.ring_settings.num_rings;
+      filledArc(
+        ctx,
+        0,
+        0,
+        this.style.cell.r0,
+        endR,
+        boardTh,
+        boardTh + (this.style.cell.angle ?? Math.PI * 2)
+      );
       ctx.moveTo(0, 0);
     }
     ctx.fill();
@@ -343,7 +390,9 @@ export class Cursor {
       const th = this.pos.th;
       // While actively shifting, the direction depends where you are.
       // On the bottom-left/top-right rows, Up = Right, Down = Left.
-      const quadrant1Or3 = th % (NUM_ANGLES / 2) >= NUM_ANGLES / 4;
+      const quadrant1Or3 =
+        th % (this.ring_settings.num_angles / 2) >=
+        this.ring_settings.num_angles / 4;
       if (quadrant1Or3 && (key === 'ArrowLeft' || key === 'ArrowRight')) {
         positive = !positive;
       }
@@ -354,7 +403,11 @@ export class Cursor {
         amount: 1,
       };
     }
-    this.currentMovement_ = combineMovements(this.currentMovement_, movement);
+    this.currentMovement_ = combineMovements(
+      this.currentMovement_,
+      movement,
+      this.ring_settings
+    );
     this.ring_.animateMove(movement, AnimationMode.NORMAL);
     this.ring_.drawGroup(movement);
   }

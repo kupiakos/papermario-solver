@@ -1,5 +1,6 @@
 import {Animation} from './animation';
 import {RingGroup, RingGroupType, RingMovement} from './movement';
+import {DEFAULT_RING_SETTINGS, RingSettings} from './ring_settings';
 
 type Context = CanvasRenderingContext2D;
 type LayerName = 'overlay' | 'enemy' | 'cursor' | 'ring';
@@ -12,7 +13,7 @@ type Canvases = {
   [name in LayerName]: HTMLCanvasElement;
 };
 
-interface Size {
+export interface Size {
   width: number;
   height: number;
 }
@@ -22,24 +23,59 @@ interface Point {
   y: number;
 }
 
+export interface RingStyle {
+  // the radius from the center to the start of the first cell
+  r0: number;
+
+  frame: Size;
+
+  // The style of the inner circle (where mario goes).
+  inner?: ArcStyle;
+
+  // The style of the outer circle (where the "grass" is)
+  outer?: ArcStyle;
+
+  // The style for each cell.
+  even_cell: ArcStyle;
+  odd_cell: ArcStyle;
+
+  enemy_style: EnemyStyle;
+
+  move_styles: {[K in 'rotate' | 'shift']: MoveStyle};
+}
+
+export interface ArcStyle {
+  border: string;
+  border_width: number;
+  fill: string;
+  r0: number;
+  width: number;
+  angle?: number;
+}
+
+interface EnemyStyle {
+  color: string;
+  radius: number;
+}
+
+export interface MoveStyle {
+  animation_time: number;
+  undo_animation_time: number;
+}
+
 export interface RingPosition {
   r: number;
   th: number;
 }
 
-export const R0 = 60;
-export const CELL_WIDTH = 32;
+const DEFAULT_R0 = 60;
+const DEFAULT_CELL_WIDTH = 32;
 
-export const NUM_RINGS = 4;
-export const NUM_ANGLES = 12;
-export const NUM_CELLS = NUM_RINGS * NUM_ANGLES;
-export const CELL_ANGLE = (2 * Math.PI) / NUM_ANGLES;
-export const OUTSIDE_WIDTH = 40;
-
-export const FRAME: Size = {
-  width: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
-  height: (R0 + NUM_RINGS * CELL_WIDTH + OUTSIDE_WIDTH) * 2,
-};
+const DEFAULT_NUM_RINGS = 4;
+const DEFAULT_NUM_ANGLES = 12;
+const DEFAULT_NUM_CELLS = DEFAULT_NUM_RINGS * DEFAULT_NUM_ANGLES;
+const DEFAULT_CELL_ANGLE = (2 * Math.PI) / DEFAULT_NUM_ANGLES;
+const OUTSIDE_WIDTH = 40;
 
 export enum AnimationMode {
   NONE = 0,
@@ -47,47 +83,71 @@ export enum AnimationMode {
   UNDO = 2,
 }
 
-const RING_ROTATE_ANIMATION_TIME = 0.15;
-const RING_UNDO_ROTATE_ANIMATION_TIME = 0.05;
-const RING_SHIFT_ANIMATION_TIME = 0.2;
-const RING_UNDO_SHIFT_ANIMATION_TIME = 0.08;
+const DEFAULT_CELL: ArcStyle = {
+  border: 'black',
+  border_width: 0.8,
+  r0: DEFAULT_R0,
+  width: 32,
+  fill: 'white',
+  angle: (2 * Math.PI) / DEFAULT_NUM_ANGLES,
+  // width: ,
+};
 
-const CELL1_FILL = '#ada786';
-const CELL2_FILL = '#8f8a6d';
-const CELL_BORDER = 'black';
-const CELL_BORDER_WIDTH = 0.8;
-
-const INSIDE_BORDER = '#bf7e56';
-const INSIDE_FILL = '#a64250';
-const INSIDE_BORDER_WIDTH = 6;
-
-const OUTSIDE_FILL = '#5AE67C';
-const OUTSIDE_BORDER = '#99851A';
-const OUTSIDE_BORDER_WIDTH = 6;
-
-const ENEMY_COLOR = '#ee0';
-const ENEMY_RADIUS = 9;
+export const DEFAULT_RING_STYLE = {
+  r0: DEFAULT_R0,
+  frame: {
+    width:
+      (DEFAULT_R0 + DEFAULT_NUM_RINGS * DEFAULT_CELL_WIDTH + OUTSIDE_WIDTH) * 2,
+    height:
+      (DEFAULT_R0 + DEFAULT_NUM_RINGS * DEFAULT_CELL_WIDTH + OUTSIDE_WIDTH) * 2,
+  },
+  inner: {
+    r0: 0,
+    border: '#bf7e56',
+    border_width: 6,
+    fill: '#a64250',
+    width: DEFAULT_R0,
+  },
+  outer: {
+    r0: DEFAULT_R0,
+    border: '#99851a',
+    border_width: 6,
+    fill: '#5ae67c',
+    width: 40,
+  },
+  even_cell: {
+    ...DEFAULT_CELL,
+    fill: '#ada786',
+  },
+  odd_cell: {
+    ...DEFAULT_CELL,
+    fill: '#8f8a6d',
+  },
+  enemy_style: {
+    color: '#ee0',
+    radius: 9,
+  },
+  move_styles: {
+    rotate: {
+      animation_time: 0.15,
+      undo_animation_time: 0.05,
+    },
+    shift: {
+      animation_time: 0.2,
+      undo_animation_time: 0.08,
+    },
+  },
+};
 
 function cellCenter({th, r}: RingPosition) {
   return {
-    x: (R0 + (r + 0.5) * CELL_WIDTH) * Math.cos((th + 0.5) * CELL_ANGLE),
-    y: (R0 + (r + 0.5) * CELL_WIDTH) * Math.sin((th + 0.5) * CELL_ANGLE),
+    x:
+      (DEFAULT_R0 + (r + 0.5) * DEFAULT_CELL_WIDTH) *
+      Math.cos((th + 0.5) * DEFAULT_CELL_ANGLE),
+    y:
+      (DEFAULT_R0 + (r + 0.5) * DEFAULT_CELL_WIDTH) *
+      Math.sin((th + 0.5) * DEFAULT_CELL_ANGLE),
   };
-}
-
-function animationSpeed(type: RingGroupType, animate: AnimationMode): number {
-  switch (animate) {
-    case AnimationMode.NONE:
-      return 0;
-    case AnimationMode.NORMAL:
-      return type === 'ring'
-        ? RING_ROTATE_ANIMATION_TIME
-        : RING_SHIFT_ANIMATION_TIME;
-    case AnimationMode.UNDO:
-      return type === 'ring'
-        ? RING_UNDO_ROTATE_ANIMATION_TIME
-        : RING_UNDO_SHIFT_ANIMATION_TIME;
-  }
 }
 
 // https://stackoverflow.com/a/45125187
@@ -116,28 +176,29 @@ export function filledArc(
 
 class Cell {
   hasEnemy: boolean;
-  private readonly fill_: string;
+  style: ArcStyle;
 
-  constructor(fill: string) {
-    this.fill_ = fill;
+  constructor(style: ArcStyle) {
+    // this.fill_ = fill;
     this.hasEnemy = false;
+    this.style = style;
   }
 
   drawBase(ctx: Context, pos: RingPosition) {
-    ctx.strokeStyle = CELL_BORDER;
-    ctx.fillStyle = this.fill_;
-    ctx.lineWidth = CELL_BORDER_WIDTH;
+    ctx.strokeStyle = this.style.border;
+    ctx.fillStyle = this.style.fill;
+    ctx.lineWidth = this.style.border_width;
     this.basePath(ctx, pos);
     innerStroke(ctx);
   }
 
-  drawTop(ctx: Context, {th, r}: RingPosition) {
+  drawTop(ctx: Context, {th, r}: RingPosition, enemy_style: EnemyStyle) {
     if (this.hasEnemy) {
-      ctx.fillStyle = ENEMY_COLOR;
+      ctx.fillStyle = enemy_style.color;
       const dotCenter = cellCenter({th, r});
       ctx.moveTo(dotCenter.x, dotCenter.y);
       ctx.beginPath();
-      ctx.arc(dotCenter.x, dotCenter.y, ENEMY_RADIUS, 0, 2 * Math.PI);
+      ctx.arc(dotCenter.x, dotCenter.y, enemy_style.radius, 0, 2 * Math.PI);
       ctx.fill();
     }
   }
@@ -154,24 +215,32 @@ class Cell {
   private basePath(ctx: Context, {th, r}: RingPosition) {
     ctx.moveTo(0, 0);
     ctx.beginPath();
-    const rStart = R0 + r * CELL_WIDTH;
-    const rEnd = rStart + CELL_WIDTH;
-    const thStart = th * CELL_ANGLE;
-    const thEnd = thStart + CELL_ANGLE;
+    const rStart = this.style.r0 + r * this.style.width;
+    const rEnd = rStart + this.style.width;
+    const thStart = th * (this.style.angle ?? Math.PI * 2);
+    const thEnd = thStart + (this.style.angle ?? Math.PI * 2);
     filledArc(ctx, 0, 0, rStart, rEnd, thStart, thEnd);
   }
 }
 
 export class Ring {
-  private readonly layers_: Layers;
-  private readonly canvases_: Canvases;
+  private readonly layers: Layers;
+  private readonly canvases: Canvases;
   private readonly ringContents: Cell[];
-  private readonly animation_: Animation;
-  private currentMovement_: RingMovement | null;
-  private readyCallbacks_: {(): void}[];
+  private readonly animation: Animation;
+  private readonly settings: RingSettings;
+  private currentMovement: RingMovement | null;
+  private readyCallbacks: {(): void}[];
+  private style: RingStyle;
 
-  constructor(canvases: Canvases) {
-    this.canvases_ = canvases;
+  constructor(
+    canvases: Canvases,
+    settings: RingSettings = DEFAULT_RING_SETTINGS,
+    style: RingStyle = DEFAULT_RING_STYLE
+  ) {
+    this.canvases = canvases;
+    this.settings = settings;
+    this.style = style;
     const canvasSize = {
       width: canvases.ring.width,
       height: canvases.ring.height,
@@ -193,45 +262,49 @@ export class Ring {
         throw new ReferenceError('canvas.getContext null');
       }
       ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.scale(canvas.width / FRAME.width, canvas.height / FRAME.height);
+      ctx.scale(
+        canvas.width / this.style.frame.width,
+        canvas.height / this.style.frame.height
+      );
       layers[layerName as LayerName] = ctx;
     }
-    this.layers_ = layers;
+    this.layers = layers;
     this.ringContents = [];
-    for (let i = 0; i < NUM_CELLS; ++i) {
-      const color =
-        ((i % 2) + Math.floor(i / NUM_ANGLES)) % 2 === 0
-          ? CELL1_FILL
-          : CELL2_FILL;
-      this.ringContents.push(new Cell(color));
+    const numCells = this.settings.num_rings * this.settings.num_angles;
+    for (let i = 0; i < numCells; ++i) {
+      const style =
+        ((i % 2) + Math.floor(i / this.settings.num_angles)) % 2 === 0
+          ? this.style.even_cell
+          : this.style.odd_cell;
+      this.ringContents.push(new Cell(style));
     }
-    this.animation_ = new Animation(
-      RING_ROTATE_ANIMATION_TIME,
+    this.animation = new Animation(
+      this.style.move_styles.rotate.animation_time,
       amount => {
-        if (!this.currentMovement_) {
+        if (!this.currentMovement) {
           throw new ReferenceError('Last movement null?');
         }
-        if (Ring.isNegativeMovement(this.currentMovement_)) {
+        if (Ring.isNegativeMovement(this.currentMovement)) {
           amount = -amount;
         }
-        this.drawGroup(this.currentMovement_, amount);
+        this.drawGroup(this.currentMovement, amount);
       },
       () => {
-        if (!this.currentMovement_) {
+        if (!this.currentMovement) {
           throw new ReferenceError('Last movement null?');
         }
-        this.move(this.currentMovement_);
-        if (--this.currentMovement_.amount > 0) {
-          this.animation_.play();
+        this.move(this.currentMovement);
+        if (--this.currentMovement.amount > 0) {
+          this.animation.play();
         } else {
-          this.currentMovement_ = null;
-          while (this.readyCallbacks_.length > 0) {
-            const cb = this.readyCallbacks_.shift();
+          this.currentMovement = null;
+          while (this.readyCallbacks.length > 0) {
+            const cb = this.readyCallbacks.shift();
             if (!cb) {
               throw new ReferenceError('cb null???');
             }
             cb();
-            if (this.currentMovement_ !== null) {
+            if (this.currentMovement !== null) {
               // This callback started a new movement.
               break;
             }
@@ -239,8 +312,8 @@ export class Ring {
         }
       }
     );
-    this.currentMovement_ = null;
-    this.readyCallbacks_ = [];
+    this.currentMovement = null;
+    this.readyCallbacks = [];
   }
 
   private static isNegativeMovement(m: RingMovement): boolean {
@@ -250,14 +323,14 @@ export class Ring {
   }
 
   isBusy(): boolean {
-    return this.animation_.isPlaying();
+    return this.animation.isPlaying();
   }
 
   async waitUntilReady(): Promise<void> {
     if (!this.isBusy()) {
       return Promise.resolve();
     }
-    return new Promise(resolve => this.readyCallbacks_.push(resolve));
+    return new Promise(resolve => this.readyCallbacks.push(resolve));
   }
 
   async animateMove(
@@ -269,8 +342,8 @@ export class Ring {
       this.move(m);
       return;
     }
-    this.currentMovement_ = {...m};
-    this.animation_.play(animationSpeed(m.type, animate));
+    this.currentMovement = {...m};
+    this.animation.play(this.animationSpeed(m.type, animate));
     await this.waitUntilReady();
   }
 
@@ -288,9 +361,9 @@ export class Ring {
   // Rotate ring `r` once.
   private rotateRing(r: number, clockwise: boolean) {
     console.log('Rotate ring', r, clockwise ? 'clockwise' : 'anti-clockwise');
-    let start = r * NUM_ANGLES;
+    let start = r * this.settings.num_angles;
     let step = 1;
-    let end = (r + 1) * NUM_ANGLES;
+    let end = (r + 1) * this.settings.num_angles;
     const arr = this.ringContents;
     if (clockwise) {
       step = -step;
@@ -304,13 +377,13 @@ export class Ring {
   // Shift the row at angular position th.
   private shiftRow(th: number, outward: boolean) {
     console.log('Shift row', th, outward ? 'outward' : 'inward');
-    if (th >= NUM_ANGLES / 2) {
-      this.shiftRow(th - NUM_ANGLES / 2, !outward);
+    if (th >= this.settings.num_angles / 2) {
+      this.shiftRow(th - this.settings.num_angles / 2, !outward);
       return;
     }
     let start = th;
-    let step = NUM_ANGLES;
-    let end = th + NUM_CELLS;
+    let step = this.settings.num_angles;
+    let end = th + this.settings.num_rings * this.settings.num_angles;
     if (outward) {
       start += step / 2;
       end += step / 2;
@@ -319,12 +392,12 @@ export class Ring {
     if ((end - start) % step !== 0) {
       throw new RangeError('wtf');
     }
-    if (NUM_ANGLES % 2 !== 0) {
-      throw new RangeError('NUM_ANGLES not even!');
+    if (this.settings.num_angles % 2 !== 0) {
+      throw new RangeError('this.settings.num_angles not even!');
     }
     let i = start;
     let n = 0;
-    while (++n < NUM_RINGS * 2) {
+    while (++n < this.settings.num_rings * 2) {
       let j = i + step;
       if (Math.round(j) === end) {
         j -= step / 2;
@@ -339,10 +412,17 @@ export class Ring {
   }
 
   getCell({th, r}: RingPosition) {
-    if (th < 0 || th >= NUM_ANGLES || r < 0 || r >= NUM_RINGS) {
+    if (
+      th < 0 ||
+      th >= this.settings.num_angles ||
+      r < 0 ||
+      r >= this.settings.num_rings
+    ) {
       throw new RangeError(`Cell index out of range: {th: ${th}, r: ${r}}}`);
     }
-    return this.ringContents[(th % NUM_ANGLES) + r * NUM_ANGLES];
+    return this.ringContents[
+      (th % this.settings.num_angles) + r * this.settings.num_angles
+    ];
   }
 
   draw() {
@@ -351,7 +431,7 @@ export class Ring {
   }
 
   getLayer(layer_name: LayerName = 'ring'): Context {
-    const layer = this.layers_[layer_name];
+    const layer = this.layers[layer_name];
     if (layer === undefined) {
       throw new ReferenceError(`No layer named ${layer_name}!`);
     }
@@ -364,7 +444,10 @@ export class Ring {
     } else {
       this.drawRow(group.th, anim_amount);
       if (both) {
-        this.drawRow((group.th + NUM_ANGLES / 2) % NUM_ANGLES, -anim_amount);
+        this.drawRow(
+          (group.th + this.settings.num_angles / 2) % this.settings.num_angles,
+          -anim_amount
+        );
       }
     }
   }
@@ -379,17 +462,17 @@ export class Ring {
     enemies.globalCompositeOperation = 'destination-out';
     enemies.moveTo(0, 0);
     enemies.beginPath();
-    const rStart = R0 + r * CELL_WIDTH;
-    const rEnd = rStart + CELL_WIDTH;
+    const rStart = this.style.r0 + r * this.style.even_cell.width;
+    const rEnd = rStart + this.style.even_cell.width;
     filledArc(enemies, 0, 0, rStart, rEnd, 0, Math.PI * 2);
     enemies.fill();
     enemies.restore();
 
-    for (let th = 0; th < NUM_ANGLES; ++th) {
+    for (let th = 0; th < this.settings.num_angles; ++th) {
       const cell = this.getCell({th, r});
       const thShifted = th + anim_amount;
       cell.drawBase(base, {th: thShifted, r});
-      cell.drawTop(enemies, {th: thShifted, r});
+      cell.drawTop(enemies, {th: thShifted, r}, this.style.enemy_style);
     }
   }
 
@@ -403,28 +486,32 @@ export class Ring {
     enemies.globalCompositeOperation = 'destination-out';
     enemies.moveTo(0, 0);
     enemies.beginPath();
-    const rEnd = R0 + CELL_WIDTH * NUM_RINGS;
-    const thStart = th * CELL_ANGLE;
-    const thEnd = thStart + CELL_ANGLE;
-    filledArc(enemies, 0, 0, R0, rEnd, thStart, thEnd);
+    const width = this.style.even_cell.width;
+    const angle = this.style.even_cell.angle ?? Math.PI * 2;
+    const rEnd = this.style.r0 + width * this.settings.num_rings;
+    const thStart = th * angle;
+    const thEnd = thStart + angle;
+    filledArc(enemies, 0, 0, this.style.r0, rEnd, thStart, thEnd);
     enemies.fill();
     enemies.restore();
     enemies.save();
     enemies.clip();
     try {
-      for (let r = 0; r < NUM_RINGS; ++r) {
+      for (let r = 0; r < this.settings.num_rings; ++r) {
         const cell = this.getCell({th, r});
         const rShifted = r + anim_amount;
         cell.drawBase(base, {th, r: rShifted});
-        cell.drawTop(enemies, {th, r: rShifted});
+        cell.drawTop(enemies, {th, r: rShifted}, this.style.enemy_style);
       }
       if (anim_amount !== 0) {
-        const thWrapped = (th + NUM_ANGLES / 2) % NUM_ANGLES;
-        const rWrapped = anim_amount < 0 ? NUM_RINGS - 1 : 0;
-        const rShifted = (anim_amount < 0 ? NUM_RINGS : -1) + anim_amount;
+        const thWrapped =
+          (th + this.settings.num_angles / 2) % this.settings.num_angles;
+        const rWrapped = anim_amount < 0 ? this.settings.num_rings - 1 : 0;
+        const rShifted =
+          (anim_amount < 0 ? this.settings.num_rings : -1) + anim_amount;
         const cell = this.getCell({th: thWrapped, r: rWrapped});
         cell.drawBase(base, {th, r: rShifted});
-        cell.drawTop(enemies, {th, r: rShifted});
+        cell.drawTop(enemies, {th, r: rShifted}, this.style.enemy_style);
       }
     } finally {
       enemies.restore();
@@ -433,7 +520,7 @@ export class Ring {
 
   drawRing() {
     // Ring cells
-    for (let r = 0; r < NUM_RINGS; ++r) {
+    for (let r = 0; r < this.settings.num_rings; ++r) {
       this.drawSubring(r);
     }
   }
@@ -441,41 +528,49 @@ export class Ring {
   drawBackground() {
     const ctx = this.getLayer('overlay');
     // Inner circle.
-    ctx.fillStyle = INSIDE_BORDER;
-    ctx.moveTo(0, 0);
-    ctx.beginPath();
-    ctx.arc(0, 0, R0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = INSIDE_FILL;
-    ctx.moveTo(0, 0);
-    ctx.beginPath();
-    ctx.arc(0, 0, R0 - INSIDE_BORDER_WIDTH, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Outside circle.
-    ctx.lineWidth = OUTSIDE_BORDER_WIDTH;
-    ctx.fillStyle = OUTSIDE_FILL;
-    ctx.strokeStyle = OUTSIDE_BORDER;
-    ctx.moveTo(0, 0);
-    ctx.beginPath();
-    const OUTSIDE_R0 = R0 + NUM_RINGS * CELL_WIDTH;
-    ctx.arc(0, 0, OUTSIDE_R0 + OUTSIDE_WIDTH, 0, Math.PI * 2, false);
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, OUTSIDE_R0, 0, Math.PI * 2, true);
-    innerStroke(ctx);
+    if (this.style.inner !== undefined) {
+      ctx.fillStyle = this.style.inner.border;
+      ctx.moveTo(0, 0);
+      ctx.beginPath();
+      ctx.arc(0, 0, DEFAULT_R0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = this.style.inner.fill;
+      ctx.moveTo(0, 0);
+      ctx.beginPath();
+      ctx.arc(0, 0, DEFAULT_R0 - this.style.inner.border_width, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (this.style.outer !== undefined) {
+      // Outside circle.
+      ctx.lineWidth = this.style.outer.border_width;
+      ctx.fillStyle = this.style.outer.fill;
+      ctx.strokeStyle = this.style.outer.border;
+      ctx.moveTo(0, 0);
+      ctx.beginPath();
+      const OUTSIDE_R0 =
+        DEFAULT_R0 + this.settings.num_rings * DEFAULT_CELL_WIDTH;
+      ctx.arc(0, 0, OUTSIDE_R0 + OUTSIDE_WIDTH, 0, Math.PI * 2, false);
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, OUTSIDE_R0, 0, Math.PI * 2, true);
+      innerStroke(ctx);
+    }
   }
 
   // Converts from { x: canvas.offsetX, y: canvas.offsetY } to
   // the equivalent position in the drawing frame.
   offsetToFramePos(offsetPos: Point): Point {
-    const style = window.getComputedStyle(this.canvases_.ring);
+    const style = window.getComputedStyle(this.canvases.ring);
     const canvasSize = {
       width: parseInt(style.width, 10),
       height: parseInt(style.height, 10),
     };
     return {
-      x: (offsetPos.x / canvasSize.width) * FRAME.width - FRAME.width / 2,
-      y: (offsetPos.y / canvasSize.height) * FRAME.height - FRAME.height / 2,
+      x:
+        (offsetPos.x / canvasSize.width) * this.style.frame.width -
+        this.style.frame.width / 2,
+      y:
+        (offsetPos.y / canvasSize.height) * this.style.frame.height -
+        this.style.frame.height / 2,
     };
   }
 
@@ -484,13 +579,16 @@ export class Ring {
   offsetToRingPos(offsetPos: Point): RingPosition | null {
     const {x, y} = this.offsetToFramePos(offsetPos);
     const th = Math.floor(
-      (Math.atan2(-y, -x) / (2 * Math.PI)) * NUM_ANGLES + NUM_ANGLES / 2
+      (Math.atan2(-y, -x) / (2 * Math.PI)) * this.settings.num_angles +
+        this.settings.num_angles / 2
     );
-    const r = Math.floor((Math.sqrt(x * x + y * y) - R0) / CELL_WIDTH);
-    if (r < 0 || r >= NUM_RINGS) {
+    const r = Math.floor(
+      (Math.sqrt(x * x + y * y) - DEFAULT_R0) / DEFAULT_CELL_WIDTH
+    );
+    if (r < 0 || r >= this.settings.num_rings) {
       return null;
     }
-    if (th < 0 || th >= NUM_ANGLES) {
+    if (th < 0 || th >= this.settings.num_angles) {
       throw new RangeError('Theta out of range??');
     }
     return {th, r};
@@ -506,6 +604,21 @@ export class Ring {
     const cell = this.getCell(pos);
     cell.hasEnemy = !cell.hasEnemy;
     cell.clearTop(ctx, pos);
-    cell.drawTop(ctx, pos);
+    cell.drawTop(ctx, pos, this.style.enemy_style);
+  }
+
+  private animationSpeed(type: RingGroupType, animate: AnimationMode): number {
+    switch (animate) {
+      case AnimationMode.NONE:
+        return 0;
+      case AnimationMode.NORMAL:
+        return type === 'ring'
+          ? this.style.move_styles.rotate.animation_time
+          : this.style.move_styles.shift.animation_time;
+      case AnimationMode.UNDO:
+        return type === 'ring'
+          ? this.style.move_styles.rotate.undo_animation_time
+          : this.style.move_styles.shift.undo_animation_time;
+    }
   }
 }
