@@ -3,8 +3,6 @@ import {
   RingPosition,
   Ring,
   filledArc,
-  MoveStyle,
-  RingStyle,
   ArcStyle,
   Size,
 } from './ring';
@@ -17,9 +15,9 @@ import {
 } from './movement';
 import {Animation} from './animation';
 import {Controls, ControlState} from './controls';
-import {DEFAULT_RING_SETTINGS, RingSettings} from './ring_settings';
+import {RingSettings} from './ring_settings';
 
-type CursorMode = RingGroupType;
+type CursorType = RingGroupType;
 type CursorMovement = {type: 'ring'} | {type: 'row'; clockwise: boolean};
 const CURSOR_UNFOCUSED = 'rgba(186, 210, 247, 0.5)';
 const CURSOR_FOCUSED = 'rgba(82, 148, 250, 0.8)';
@@ -28,17 +26,24 @@ const CURSOR_RING_MOVE_ANIMATION_TIME = 0.05;
 const CURSOR_SHIFT_MOVE_ANIMATION_TIME = 0.1;
 
 enum CursorState {
+  /** The cursor is unfocused. Movement moves the cursor. */
   UNFOCUSED = 0,
+  /** The cursor is focused. Movement moves the ring. */
   FOCUSED = 1,
+  /** The cursor is hidden. Movement does nothing. */
   HIDDEN = 2,
 }
 
 type CursorStyle = {cell: ArcStyle; frame: Size};
 
+/**
+ * A cursor for performing manual ring movements.
+ * Currently only supports desktop keyboard movement.
+ */
 export class Cursor {
-  type: CursorMode = 'ring';
   pos: RingPosition = {r: 0, th: 0};
 
+  private type_: CursorType = 'ring';
   private state_: CursorState = CursorState.UNFOCUSED;
   private currentMovement_: RingMovement | null = null;
   private animatingMovement_: CursorMovement | null = null;
@@ -77,53 +82,45 @@ export class Cursor {
     this.controls_ = controls;
   }
 
+  /** Is this cursor currently hidden? */
   get hidden(): boolean {
     return this.state_ === CursorState.HIDDEN;
   }
 
+  /** Is this cursor currently focused? */
   get focused(): boolean {
     return this.state_ === CursorState.FOCUSED;
   }
 
-  switchType() {
-    if (this.type === 'ring') {
-      this.type = 'row';
-    } else if (this.type === 'row') {
-      this.type = 'ring';
+  /** Switches the type of the cursor between subring and row. */
+  private switchType() {
+    if (this.type_ === 'ring') {
+      this.type_ = 'row';
+    } else if (this.type_ === 'row') {
+      this.type_ = 'ring';
     }
   }
 
-  sectionSelected(type: CursorMode, index: number) {
-    if (this.type !== type) {
-      return false;
-    }
-    if (this.type === 'ring') {
-      return index === this.pos.r;
-    }
-    return index === this.pos.th;
-  }
-
-  cellSelected({th, r}: RingPosition) {
-    if (this.type === 'ring') {
-      return r === this.pos.r;
-    }
-    return th === this.pos.th;
-  }
-
-  move(reverse: boolean, animate = true) {
+  /**
+   * Has the cursor itself move - NOT move the underlying ring.
+   * Precondition: !this.focused.
+   * @param reverse If in row mode, move anticlockwise if this is true.
+   * @param animate Whether to animate the cursor movement.
+   */
+  private move(reverse: boolean, animate = true) {
     if (animate) {
       if (this.animation_.isPlaying()) {
         return;
       }
-      this.animatingMovement_ = {clockwise: reverse, type: this.type};
+      this.animatingMovement_ = {clockwise: reverse, type: this.type_};
       this.animation_.play(
-        this.type === 'ring'
+        this.type_ === 'ring'
           ? CURSOR_RING_MOVE_ANIMATION_TIME
           : CURSOR_SHIFT_MOVE_ANIMATION_TIME
       );
       return;
     }
-    if (this.type === 'ring') {
+    if (this.type_ === 'ring') {
       this.pos = {
         ...this.pos,
         r: (this.pos.r + 1) % this.ring_settings.num_rings,
@@ -139,22 +136,24 @@ export class Cursor {
     }
   }
 
+  /** Draws one animation frame. */
   private drawAnimationFrame(amount: number) {
     if (!this.animatingMovement_) {
       throw new ReferenceError('Last movement null?');
     }
     if (
       this.animatingMovement_.type === 'row' &&
-      this.animatingMovement_.clockwise
+      !this.animatingMovement_.clockwise
     ) {
       amount = -amount;
     }
     this.draw(amount);
   }
 
+  /** Draws the whole cursor. */
   draw(
     anim_amount = 0,
-    ctx: CanvasRenderingContext2D = this.ring_.getLayer('cursor')
+    ctx: CanvasRenderingContext2D = this.ring_.view.getLayer('cursor')
   ) {
     const frame = this.style.frame;
     ctx.clearRect(
@@ -167,13 +166,18 @@ export class Cursor {
       return;
     }
     ctx.fillStyle = this.focused ? CURSOR_FOCUSED : CURSOR_UNFOCUSED;
-    if (this.type === 'ring') {
+    if (this.type_ === 'ring') {
       this.drawRing_(anim_amount, ctx);
-    } else if (this.type === 'row') {
+    } else if (this.type_ === 'row') {
       this.drawRow_(anim_amount, ctx);
     }
   }
 
+  /**
+   * Draws a ring-shaped cursor.
+   * @param anim_amount The animation amount, [0, 1]. Higher values are more outwards.
+   * @param ctx The context to draw on.
+   */
   private drawRing_(anim_amount: number, ctx: CanvasRenderingContext2D) {
     let r = this.pos.r + anim_amount;
     ctx.moveTo(0, 0);
@@ -207,6 +211,11 @@ export class Cursor {
     }
   }
 
+  /**
+   * Draws a row-shaped cursor.
+   * @param anim_amount The animation amount, [-1, 1]. Higher values are more clockwise.
+   * @param ctx The context to draw on.
+   */
   private drawRow_(anim_amount: number, ctx: CanvasRenderingContext2D) {
     const th = this.pos.th;
     ctx.moveTo(0, 0);
@@ -234,7 +243,7 @@ export class Cursor {
     ctx.fill();
   }
 
-  // Hide the cursor and prevent it from being used.
+  /** Hides the cursor and prevents it from being used. */
   hide() {
     if (this.hidden) {
       return;
@@ -250,6 +259,7 @@ export class Cursor {
     this.updateControls();
   }
 
+  /** Shows the cursor to let it be used. */
   show() {
     if (this.hidden) {
       this.state_ = CursorState.UNFOCUSED;
@@ -258,11 +268,12 @@ export class Cursor {
     this.updateControls();
   }
 
-  isBusy(): boolean {
+  /** Can this cursor be interacted with by the user? */
+  private isBusy(): boolean {
     return this.ring_.isBusy() || this.hidden;
   }
 
-  // Manipulate the cursor with the keyboard.
+  /** Manipulates the cursor with the keyboard. */
   onKeyDown(event: KeyboardEvent) {
     if (this.isBusy()) {
       return;
@@ -293,15 +304,19 @@ export class Cursor {
     }
   }
 
-  // Confirm a planned movement with the cursor.
-  // Precondition: this.focused.
+  /**
+   * Confirms a planned movement with the cursor.
+   * Precondition: this.focused.
+   */
   private confirm() {
     this.moveHistory_.addMovement(this.currentMovement_);
     this.switchFocus();
   }
 
-  // Cancel or undo, based on the focus state of the cursor.
-  // Equivalent to pressing 'B'.
+  /**
+   * Cancels or undoes, based on the focus state of the cursor.
+   * Equivalent to pressing 'B' in the game.
+   */
   cancel() {
     if (this.isBusy()) {
       return;
@@ -313,8 +328,10 @@ export class Cursor {
     }
   }
 
-  // Cancel a planned movement with the cursor.
-  // Precondition: this.focused.
+  /**
+   * Cancels a planned movement with the cursor.
+   * Precondition: this.focused.
+   */
   private cancelPlanned() {
     if (this.currentMovement_ === null) {
       this.switchFocus();
@@ -330,8 +347,10 @@ export class Cursor {
     this.updateControls();
   }
 
-  // Undo a movement already executed.
-  // Precondition: !this.focused.
+  /**
+   * Undoes a movement already executed.
+   * Precondition: !this.focused.
+   */
   private undo() {
     if (this.moveHistory_.empty) {
       return;
@@ -345,7 +364,10 @@ export class Cursor {
     this.updateControls();
   }
 
-  // Precondition: !this.hidden.
+  /**
+   * Switches whether the cursor is focused or not.
+   * Precondition: !this.hidden.
+   */
   private switchFocus() {
     if (this.hidden) {
       return;
@@ -356,6 +378,9 @@ export class Cursor {
     this.updateControls();
   }
 
+  /**
+   * Updates the controls section with the relevant info.
+   */
   private updateControls() {
     const states: ControlState[] = [];
     if (this.focused) {
@@ -372,14 +397,18 @@ export class Cursor {
     this.controls_.setStates(states);
   }
 
-  // Precondition: this.focused
+  /**
+   * Moves the ring based on the current ring state.
+   * Precondition: this.focused.
+   * @param key The keypress string.
+   */
   private moveRing(key: string) {
     let positive = this.arrowIsPositive(key);
     if (positive === null) {
       return;
     }
     let movement: RingMovement;
-    if (this.type === 'ring') {
+    if (this.type_ === 'ring') {
       movement = {
         type: 'ring',
         clockwise: positive,

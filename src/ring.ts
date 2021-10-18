@@ -1,8 +1,23 @@
 import {Animation} from './animation';
-import {RingGroup, RingGroupType, RingMovement} from './movement';
-import {DEFAULT_RING_SETTINGS, RingSettings} from './ring_settings';
+import {
+  RingGroup,
+  RingGroupType,
+  RingMovement,
+  isNegativeMovement,
+} from './movement';
+import {RingSettings} from './ring_settings';
 
 type Context = CanvasRenderingContext2D;
+
+/**
+ * To make drawing simpler, the canvases for drawing parts of the board are
+ * done in layers. These are their names.
+ * In order from top to bottom:
+ *  - overlay: The inner and outer borders, hides a lot of visual artifacts.
+ *  - enemy:   Where enemies are drawn.
+ *  - cursor:  Where the cursor (only on desktop) is drawn.
+ *  - ring:    Where the actual cells of the ring itself are drawn.
+ */
 type LayerName = 'overlay' | 'enemy' | 'cursor' | 'ring';
 
 type Layers = {
@@ -63,8 +78,20 @@ export interface MoveStyle {
   undo_animation_time: number;
 }
 
+/**
+ * Specifies a unique position on the ring.
+ * Equivalent to (x,y) for a 2D plane, but on a ring instead.
+ */
 export interface RingPosition {
+  /**
+   * The subring position, where 0 is the most inner subring.
+   */
   r: number;
+
+  /**
+   * The angular position, where 0 is the rightmost angle and increases
+   * clockwise. Short for theta/θ, used for angles.
+   */
   th: number;
 }
 
@@ -73,13 +100,18 @@ const DEFAULT_CELL_WIDTH = 32;
 
 const DEFAULT_NUM_RINGS = 4;
 const DEFAULT_NUM_ANGLES = 12;
-const DEFAULT_NUM_CELLS = DEFAULT_NUM_RINGS * DEFAULT_NUM_ANGLES;
 const DEFAULT_CELL_ANGLE = (2 * Math.PI) / DEFAULT_NUM_ANGLES;
 const OUTSIDE_WIDTH = 40;
 
+/** Different styles of animation for moving the ring. */
 export enum AnimationMode {
+  /** No animation will be done. */
   NONE = 0,
+
+  /** Normal animation, for forwards movement. */
   NORMAL = 1,
+
+  /** Fast animation, for quick undos. */
   UNDO = 2,
 }
 
@@ -139,6 +171,7 @@ export const DEFAULT_RING_STYLE = {
   },
 };
 
+/** Gets the center of a cell for a given ring position. */
 function cellCenter({th, r}: RingPosition) {
   return {
     x:
@@ -150,15 +183,37 @@ function cellCenter({th, r}: RingPosition) {
   };
 }
 
-// https://stackoverflow.com/a/45125187
-function innerStroke(ctx: Context) {
-  ctx.save();
-  ctx.clip();
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
+/** Gets the expected animation speed for a group type and animation mode. */
+function animationSpeed(
+  style: RingStyle,
+  type: RingGroupType,
+  animate: AnimationMode
+): number {
+  switch (animate) {
+    case AnimationMode.NONE:
+      return 0;
+    case AnimationMode.NORMAL:
+      return type === 'ring'
+        ? style.move_styles.rotate.animation_time
+        : style.move_styles.shift.animation_time;
+    case AnimationMode.UNDO:
+      return type === 'ring'
+        ? style.move_styles.rotate.undo_animation_time
+        : style.move_styles.shift.undo_animation_time;
+  }
 }
 
+/**
+ * Draws a filled arc or "wedge", also the shape of each ring cell.
+ * @param ctx The context to manipulate.
+ * @param x The x position of the arc center.
+ * @param y The y position of the arc center.
+ * @param r1 The inner radius.
+ * @param r2 The outer radius.
+ * @param startAngle The starting angle of the wedge.
+ * @param endAngle The ending angle of the wedge.
+ * @param anticlockwise Whether to draw the arc anticlockwise.
+ */
 export function filledArc(
   ctx: Context,
   x: number,
@@ -174,7 +229,58 @@ export function filledArc(
   ctx.closePath();
 }
 
+/**
+ * Like ctx.stroke, but only on the inner part of a path, so it doesn't go
+ * outside. See https://stackoverflow.com/a/45125187.
+ * @param ctx The context to manipulate.
+ */
+function innerStroke(ctx: Context) {
+  ctx.save();
+  ctx.clip();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * Gets the contexts for a set of canvases, verifying important properties.
+ * @param canvases The set of canvases to convert.
+ */
+function canvasesToLayers(frame: Size, canvases: Canvases): Layers {
+  const canvasSize = {
+    width: canvases.ring.width,
+    height: canvases.ring.height,
+  };
+  const layers = {} as Layers;
+  for (const layerName in canvases) {
+    const canvas = canvases[layerName as LayerName];
+    if (
+      canvas.width !== canvasSize.width ||
+      canvas.height !== canvasSize.height
+    ) {
+      throw new RangeError('Uneven canvas size!');
+    }
+    if (!canvas.getContext) {
+      throw new ReferenceError('No canvas context!');
+    }
+    const ctx = canvas.getContext('2d');
+    if (ctx === null) {
+      throw new ReferenceError('canvas.getContext null');
+    }
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(canvas.width / frame.width, canvas.height / frame.height);
+    layers[layerName as LayerName] = ctx;
+  }
+  return layers;
+}
+
+/**
+ * Stores the data necessary to draw and manipulate a single cell on a ring.
+ * Notably, this doesn't contain the actual position of the cell. That's done
+ * by the model itelf.
+ */
 class Cell {
+  /** Does this cell currently contain an enemy? */
   hasEnemy: boolean;
   style: ArcStyle;
 
@@ -184,6 +290,11 @@ class Cell {
     this.style = style;
   }
 
+  /**
+   * Draw the base of the cell, where the floor is.
+   * @param ctx The context to draw on, expected to be the 'ring' layer.
+   * @param pos The ring position to draw at. May be a non-integer.
+   */
   drawBase(ctx: Context, pos: RingPosition) {
     ctx.strokeStyle = this.style.border;
     ctx.fillStyle = this.style.fill;
@@ -192,6 +303,12 @@ class Cell {
     innerStroke(ctx);
   }
 
+  /**
+   * Draw the top of the cell, where the enemies are.
+   * @param ctx The context to draw on, expected to be the 'enemy' layer.
+   * @param pos The ring position to draw at. May be a non-integer.
+   * @param enemy_style
+   */
   drawTop(ctx: Context, {th, r}: RingPosition, enemy_style: EnemyStyle) {
     if (this.hasEnemy) {
       ctx.fillStyle = enemy_style.color;
@@ -203,6 +320,11 @@ class Cell {
     }
   }
 
+  /**
+   * Clear the top of the cell, where the enemies are.
+   * @param ctx The context to draw on, expected to be the 'enemy' layer.
+   * @param pos The ring position to clear.
+   */
   clearTop(ctx: Context, pos: RingPosition) {
     ctx.save();
     ctx.fillStyle = 'black';
@@ -212,6 +334,7 @@ class Cell {
     ctx.restore();
   }
 
+  /** Paths out the actual base of the cell, for clearing or drawing. */
   private basePath(ctx: Context, {th, r}: RingPosition) {
     ctx.moveTo(0, 0);
     ctx.beginPath();
@@ -223,236 +346,66 @@ class Cell {
   }
 }
 
-export class Ring {
+/** A dumb class that draws cells in the ring. */
+class RingView {
   private readonly layers: Layers;
-  private readonly canvases: Canvases;
-  private readonly ringContents: Cell[];
-  private readonly animation: Animation;
-  private readonly settings: RingSettings;
-  private currentMovement: RingMovement | null;
-  private readyCallbacks: {(): void}[];
+  private model_: RingModel;
+  private settings: RingSettings;
   private style: RingStyle;
 
+  /**
+   * @param layers The set of Contexts to draw on.
+   * @param model The {@link RingModel} that contains the cells.
+   */
   constructor(
-    canvases: Canvases,
-    settings: RingSettings = DEFAULT_RING_SETTINGS,
+    layers: Layers,
+    model: RingModel,
     style: RingStyle = DEFAULT_RING_STYLE
   ) {
-    this.canvases = canvases;
-    this.settings = settings;
-    this.style = style;
-    const canvasSize = {
-      width: canvases.ring.width,
-      height: canvases.ring.height,
-    };
-    const layers = {} as Layers;
-    for (const layerName in canvases) {
-      const canvas = canvases[layerName as LayerName];
-      if (
-        canvas.width !== canvasSize.width ||
-        canvas.height !== canvasSize.height
-      ) {
-        throw new RangeError('Uneven canvas size!');
-      }
-      if (!canvas.getContext) {
-        throw new ReferenceError('No canvas context!');
-      }
-      const ctx = canvas.getContext('2d');
-      if (ctx === null) {
-        throw new ReferenceError('canvas.getContext null');
-      }
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.scale(
-        canvas.width / this.style.frame.width,
-        canvas.height / this.style.frame.height
-      );
-      layers[layerName as LayerName] = ctx;
-    }
     this.layers = layers;
-    this.ringContents = [];
-    const numCells = this.settings.num_rings * this.settings.num_angles;
-    for (let i = 0; i < numCells; ++i) {
-      const style =
-        ((i % 2) + Math.floor(i / this.settings.num_angles)) % 2 === 0
-          ? this.style.even_cell
-          : this.style.odd_cell;
-      this.ringContents.push(new Cell(style));
-    }
-    this.animation = new Animation(
-      this.style.move_styles.rotate.animation_time,
-      amount => {
-        if (!this.currentMovement) {
-          throw new ReferenceError('Last movement null?');
-        }
-        if (Ring.isNegativeMovement(this.currentMovement)) {
-          amount = -amount;
-        }
-        this.drawGroup(this.currentMovement, amount);
-      },
-      () => {
-        if (!this.currentMovement) {
-          throw new ReferenceError('Last movement null?');
-        }
-        this.move(this.currentMovement);
-        if (--this.currentMovement.amount > 0) {
-          this.animation.play();
-        } else {
-          this.currentMovement = null;
-          while (this.readyCallbacks.length > 0) {
-            const cb = this.readyCallbacks.shift();
-            if (!cb) {
-              throw new ReferenceError('cb null???');
-            }
-            cb();
-            if (this.currentMovement !== null) {
-              // This callback started a new movement.
-              break;
-            }
-          }
-        }
-      }
-    );
-    this.currentMovement = null;
-    this.readyCallbacks = [];
+    this.model_ = model;
+    this.settings = model.settings;
+    this.style = style;
   }
-
-  private static isNegativeMovement(m: RingMovement): boolean {
-    return (
-      (m.type === 'ring' && !m.clockwise) || (m.type === 'row' && !m.outward)
-    );
-  }
-
-  isBusy(): boolean {
-    return this.animation.isPlaying();
-  }
-
-  async waitUntilReady(): Promise<void> {
-    if (!this.isBusy()) {
-      return Promise.resolve();
-    }
-    return new Promise(resolve => this.readyCallbacks.push(resolve));
-  }
-
-  async animateMove(
-    m: RingMovement,
-    animate: AnimationMode = AnimationMode.NORMAL
-  ): Promise<void> {
-    await this.waitUntilReady();
-    if (animate === AnimationMode.NONE) {
-      this.move(m);
-      return;
-    }
-    this.currentMovement = {...m};
-    this.animation.play(this.animationSpeed(m.type, animate));
-    await this.waitUntilReady();
-  }
-
-  move(m: RingMovement) {
-    if (m.amount < 1) {
-      throw new RangeError(`move amount ${m.amount} < 1`);
-    }
-    if (m.type === 'ring') {
-      this.rotateRing(m.r, m.clockwise);
-    } else {
-      this.shiftRow(m.th, m.outward);
-    }
-  }
-
-  // Rotate ring `r` once.
-  private rotateRing(r: number, clockwise: boolean) {
-    console.log('Rotate ring', r, clockwise ? 'clockwise' : 'anti-clockwise');
-    let start = r * this.settings.num_angles;
-    let step = 1;
-    let end = (r + 1) * this.settings.num_angles;
-    const arr = this.ringContents;
-    if (clockwise) {
-      step = -step;
-      [start, end] = [end + step, start + step];
-    }
-    for (let i = start; i !== end - step; i += step) {
-      [arr[i], arr[i + step]] = [arr[i + step], arr[i]];
-    }
-  }
-
-  // Shift the row at angular position th.
-  private shiftRow(th: number, outward: boolean) {
-    console.log('Shift row', th, outward ? 'outward' : 'inward');
-    if (th >= this.settings.num_angles / 2) {
-      this.shiftRow(th - this.settings.num_angles / 2, !outward);
-      return;
-    }
-    let start = th;
-    let step = this.settings.num_angles;
-    let end = th + this.settings.num_rings * this.settings.num_angles;
-    if (outward) {
-      start += step / 2;
-      end += step / 2;
-    }
-    const arr = this.ringContents;
-    if ((end - start) % step !== 0) {
-      throw new RangeError('wtf');
-    }
-    if (this.settings.num_angles % 2 !== 0) {
-      throw new RangeError('this.settings.num_angles not even!');
-    }
-    let i = start;
-    let n = 0;
-    while (++n < this.settings.num_rings * 2) {
-      let j = i + step;
-      if (Math.round(j) === end) {
-        j -= step / 2;
-        if (outward) {
-          j -= step;
-        }
-        step = -step;
-      }
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-      i = j;
-    }
-  }
-
-  getCell({th, r}: RingPosition) {
-    if (
-      th < 0 ||
-      th >= this.settings.num_angles ||
-      r < 0 ||
-      r >= this.settings.num_rings
-    ) {
-      throw new RangeError(`Cell index out of range: {th: ${th}, r: ${r}}}`);
-    }
-    return this.ringContents[
-      (th % this.settings.num_angles) + r * this.settings.num_angles
-    ];
-  }
-
+  /** Draw the whole ring, including the background. */
   draw() {
     this.drawRing();
-    this.drawBackground();
+    this.drawOverlay();
   }
 
-  getLayer(layer_name: LayerName = 'ring'): Context {
-    const layer = this.layers[layer_name];
-    if (layer === undefined) {
-      throw new ReferenceError(`No layer named ${layer_name}!`);
-    }
-    return layer;
-  }
-
-  drawGroup(group: RingGroup, anim_amount = 0, both = true) {
+  /**
+   * Draws a specific subring or row, possibly currently animated.
+   * @param group The subring/row.
+   * @param anim_amount The amount we're currently through an animation,
+   * in the range [-1, 1]. See {@link drawSubring}, {@link drawAngle}.
+   */
+  drawGroup(group: RingGroup, anim_amount = 0) {
     if (group.type === 'ring') {
       this.drawSubring(group.r, anim_amount);
     } else {
-      this.drawRow(group.th, anim_amount);
-      if (both) {
-        this.drawRow(
-          (group.th + this.settings.num_angles / 2) % this.settings.num_angles,
-          -anim_amount
-        );
-      }
+      this.drawAngle(group.th, anim_amount);
+      this.drawAngle(
+        (group.th + this.settings.num_angles / 2) % this.settings.num_angles,
+        -anim_amount
+      );
     }
   }
 
-  drawSubring(r: number, anim_amount = 0) {
+  /** Get the cell at a given position. */
+  private getCell(pos: RingPosition): Cell {
+    return this.model_.getCell(pos);
+  }
+
+  /**
+   * Draws a specific subring, possibly currently animated.
+   *
+   * An anim_amount of 0 draws the subring as the model says.
+   * Lower values are drawn rotated anticlockwise, and higher amounts are drawn
+   * rotated clockwise.
+   * @param r The radius index of the subring.
+   * @param anim_amount The animation amount, in the range [-1, 1].
+   */
+  private drawSubring(r: number, anim_amount = 0) {
     const base = this.getLayer();
     const enemies = this.getLayer('enemy');
 
@@ -476,7 +429,16 @@ export class Ring {
     }
   }
 
-  drawRow(th: number, anim_amount = 0) {
+  /**
+   * Draws a specific angle/half-row, possibly currently animated.
+   *
+   * An anim_amount of 0 draws the subring as the model says.
+   * Lower values are drawn shifted inwards, and higher amounts are drawn
+   * shifted outwards.
+   * @param th The angular index (theta) of the subring.
+   * @param anim_amount The animation amount, in the range [-1, 1].
+   */
+  private drawAngle(th: number, anim_amount = 0) {
     const base = this.getLayer();
     const enemies = this.getLayer('enemy');
 
@@ -518,14 +480,16 @@ export class Ring {
     }
   }
 
-  drawRing() {
+  /** Draw the ring and its contents. */
+  private drawRing() {
     // Ring cells
     for (let r = 0; r < this.settings.num_rings; ++r) {
       this.drawSubring(r);
     }
   }
 
-  drawBackground() {
+  /** Draw the contents of the ring overlay. Should only need once. */
+  private drawOverlay() {
     const ctx = this.getLayer('overlay');
     // Inner circle.
     if (this.style.inner !== undefined) {
@@ -556,10 +520,250 @@ export class Ring {
     }
   }
 
-  // Converts from { x: canvas.offsetX, y: canvas.offsetY } to
-  // the equivalent position in the drawing frame.
-  offsetToFramePos(offsetPos: Point): Point {
-    const style = window.getComputedStyle(this.canvases.ring);
+  /** Get the layer associated with the layer name. */
+  getLayer(layer_name: LayerName = 'ring'): Context {
+    const layer = this.layers[layer_name];
+    if (layer === undefined) {
+      throw new ReferenceError(`No layer named ${layer_name}!`);
+    }
+    return layer;
+  }
+}
+
+/** Contains the actual data stored on the ring, with manipulation code. */
+export class RingModel {
+  /** The actual contents of the model, hidden through abstraction. */
+  readonly settings: RingSettings;
+  // readonly style: RingStyle;
+  private readonly ringContents_: Cell[];
+
+  // TODO: properly separate styling from the model
+  constructor(settings: RingSettings, style: RingStyle) {
+    this.settings = settings;
+    this.ringContents_ = [];
+    const numCells = this.settings.num_angles * this.settings.num_rings;
+    for (let i = 0; i < numCells; ++i) {
+      const cellStyle =
+        ((i % 2) + Math.floor(i / this.settings.num_angles)) % 2 === 0
+          ? style.even_cell
+          : style.odd_cell;
+      this.ringContents_.push(new Cell(cellStyle));
+    }
+  }
+
+  /**
+   * Manipulate the ring contents, either a row shift or subring rotate.
+   * @param m The ring movement to do.
+   */
+  move(m: RingMovement) {
+    if (m.amount < 0) {
+      throw new RangeError(`move amount ${m.amount} < 0`);
+    }
+    for (let i = 0; i < m.amount; ++i) {
+      if (m.type === 'ring') {
+        this.rotateRing(m.r, m.clockwise);
+      } else {
+        this.shiftRow(m.th, m.outward);
+      }
+    }
+  }
+
+  /**
+   * Rotate a subring once.
+   * @param r The subring index to rotate.
+   * @param clockwise Whether to rotate the ring clockwise.
+   */
+  private rotateRing(r: number, clockwise: boolean) {
+    console.log('Rotate ring', r, clockwise ? 'clockwise' : 'anti-clockwise');
+    let start = r * this.settings.num_angles;
+    let step = 1;
+    let end = (r + 1) * this.settings.num_angles;
+    const arr = this.ringContents_;
+    if (clockwise) {
+      step = -step;
+      [start, end] = [end + step, start + step];
+    }
+    for (let i = start; i !== end - step; i += step) {
+      [arr[i], arr[i + step]] = [arr[i + step], arr[i]];
+    }
+  }
+
+  /**
+   * Shift a given row once.
+   * @param th The angular index to shift, [0, this.settings.num_angles).
+   * @param outward Whether to shift outwards or inwards.
+   */
+  private shiftRow(th: number, outward: boolean) {
+    if (th >= this.settings.num_angles / 2) {
+      this.shiftRow(th - this.settings.num_angles / 2, !outward);
+      return;
+    }
+    console.log('Shift row', th, outward ? 'outward' : 'inward');
+    let start = th;
+    let step = this.settings.num_angles;
+    const numCells = this.settings.num_angles * this.settings.num_rings;
+    let end = th + numCells;
+    if (outward) {
+      start += step / 2;
+      end += step / 2;
+    }
+    const arr = this.ringContents_;
+    if ((end - start) % step !== 0) {
+      throw new RangeError('wtf');
+    }
+    let i = start;
+    let n = 0;
+    while (++n < this.settings.num_rings * 2) {
+      let j = i + step;
+      if (Math.round(j) === end) {
+        j -= step / 2;
+        if (outward) {
+          j -= step;
+        }
+        step = -step;
+      }
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      i = j;
+    }
+  }
+
+  getCell({th, r}: RingPosition) {
+    if (
+      th < 0 ||
+      th >= this.settings.num_angles ||
+      r < 0 ||
+      r >= this.settings.num_rings
+    ) {
+      throw new RangeError(`Cell index out of range: {th: ${th}, r: ${r}}}`);
+    }
+    return this.ringContents_[
+      (th % this.settings.num_angles) + r * this.settings.num_angles
+    ];
+  }
+}
+
+/**
+ * Represents the user-visible ring and tools to manipulate it.
+ * This is the really important class.
+ */
+export class Ring {
+  private readonly canvases_: Canvases;
+  private readonly model_: RingModel;
+  private readonly view_: RingView;
+  private currentMovement_: RingMovement | null = null;
+  private readonly animation_: Animation;
+  private readyCallbacks_: {(): void}[] = [];
+  // TODO: get rid of the underscores on members?
+  private settings: RingSettings;
+  private style: RingStyle;
+
+  constructor(canvases: Canvases, settings: RingSettings, style: RingStyle) {
+    this.settings = settings;
+    this.style = style;
+    this.canvases_ = canvases;
+    this.model_ = new RingModel(settings, style);
+    this.view_ = new RingView(
+      canvasesToLayers(style.frame, canvases),
+      this.model_
+    );
+    this.animation_ = new Animation(
+      1,
+      this.onFrame.bind(this),
+      this.onSingleMoveDone.bind(this)
+    );
+  }
+
+  get model(): RingModel {
+    return this.model_;
+  }
+
+  get view(): RingView {
+    return this.view_;
+  }
+
+  /**
+   * Called on each frame of a move animation.
+   * @param amount The progress through the animation to draw, [0, 1].
+   */
+  private onFrame(amount: number) {
+    if (!this.currentMovement_) {
+      throw new ReferenceError('Last movement null?');
+    }
+    if (isNegativeMovement(this.currentMovement_)) {
+      amount = -amount;
+    }
+    this.view.drawGroup(this.currentMovement_, amount);
+  }
+
+  /** Executed when an animation has finished for a single movement. */
+  private onSingleMoveDone() {
+    if (!this.currentMovement_) {
+      throw new ReferenceError('Last movement null?');
+    }
+    this.model.move({...this.currentMovement_, amount: 1});
+    if (--this.currentMovement_.amount > 0) {
+      // We're not done moving yet, replay the animation.
+      this.animation_.play();
+    } else {
+      this.currentMovement_ = null;
+      while (this.readyCallbacks_.length > 0) {
+        const cb = this.readyCallbacks_.shift();
+        if (!cb) {
+          throw new ReferenceError('cb null???');
+        }
+        cb();
+        if (this.currentMovement_ !== null) {
+          // This callback started a new movement.
+          break;
+        }
+      }
+    }
+  }
+
+  /** Is the ring currently busy being animated? */
+  isBusy(): boolean {
+    return this.animation_.isPlaying();
+  }
+
+  /** Returns a promise that resolves when the animation is done playing. */
+  async waitUntilReady(): Promise<void> {
+    if (!this.isBusy()) {
+      return Promise.resolve();
+    }
+    return new Promise(resolve => this.readyCallbacks_.push(resolve));
+  }
+
+  /** Animates a movement, returning a promise that resolves when it's done. */
+  async animateMove(
+    m: RingMovement,
+    animate: AnimationMode = AnimationMode.NORMAL
+  ): Promise<void> {
+    await this.waitUntilReady();
+    if (animate === AnimationMode.NONE) {
+      this.model.move(m);
+      return;
+    }
+    this.currentMovement_ = {...m};
+    this.animation_.play(animationSpeed(this.style, m.type, animate));
+    await this.waitUntilReady();
+  }
+
+  /**
+   * Draws a specific subring or row.
+   * @param group The subring/row.
+   */
+  drawGroup(group: RingGroup) {
+    this.view.drawGroup(group, 0);
+  }
+
+  /**
+   * Converts from a canvas offset to the equivalent in the drawing frame.
+   * @param offsetPos.x The canvas.offsetX
+   * @param offsetPos.y The canvas.offsetY
+   * @returns The equivalent (X, Y) point in the frame, with a (0,0) center.
+   */
+  private offsetToFramePos(offsetPos: Point): Point {
+    const style = window.getComputedStyle(this.canvases_.ring);
     const canvasSize = {
       width: parseInt(style.width, 10),
       height: parseInt(style.height, 10),
@@ -574,9 +778,13 @@ export class Ring {
     };
   }
 
-  // Converts from { x: canvas.offsetX, y: canvas.offsetY } to
-  // the equivalent position on the ring, or null if there is none.
-  offsetToRingPos(offsetPos: Point): RingPosition | null {
+  /**
+   * Converts from a canvas offset to a ring position.
+   * @param offsetPos.x The canvas.offsetX
+   * @param offsetPos.y The canvas.offsetY
+   * @returns The equivalent position in the ring, or null if there is none.
+   */
+  private offsetToRingPos(offsetPos: Point): RingPosition | null {
     const {x, y} = this.offsetToFramePos(offsetPos);
     const th = Math.floor(
       (Math.atan2(-y, -x) / (2 * Math.PI)) * this.settings.num_angles +
@@ -594,31 +802,17 @@ export class Ring {
     return {th, r};
   }
 
+  /** Run every time a mouse click or touch happens. */
   onMouseDown(event: MouseEvent) {
     const pos = this.offsetToRingPos({x: event.offsetX, y: event.offsetY});
     if (!pos) {
       return;
     }
     console.log('click', pos);
-    const ctx = this.getLayer('enemy');
-    const cell = this.getCell(pos);
+    const ctx = this.view.getLayer('enemy');
+    const cell = this.model.getCell(pos);
     cell.hasEnemy = !cell.hasEnemy;
     cell.clearTop(ctx, pos);
     cell.drawTop(ctx, pos, this.style.enemy_style);
-  }
-
-  private animationSpeed(type: RingGroupType, animate: AnimationMode): number {
-    switch (animate) {
-      case AnimationMode.NONE:
-        return 0;
-      case AnimationMode.NORMAL:
-        return type === 'ring'
-          ? this.style.move_styles.rotate.animation_time
-          : this.style.move_styles.shift.animation_time;
-      case AnimationMode.UNDO:
-        return type === 'ring'
-          ? this.style.move_styles.rotate.undo_animation_time
-          : this.style.move_styles.shift.undo_animation_time;
-    }
   }
 }

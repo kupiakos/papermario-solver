@@ -1,5 +1,5 @@
 import {simplifyMovement} from './movement';
-import {Ring} from './ring';
+import {RingModel} from './ring';
 import {RingSettings} from './ring_settings';
 import type {RingData, Solution, SolverOutput} from './worker';
 export type {Solution};
@@ -12,6 +12,7 @@ export class Solver {
     this.ring_settings = ring_settings;
   }
 
+  /** Return or build a solver worker. */
   private async getWorker(): Promise<Worker> {
     if (this.worker_ === null) {
       const w = new Worker('./worker.js');
@@ -21,7 +22,12 @@ export class Solver {
     return this.worker_;
   }
 
-  async solve(ring: Ring): Promise<Solution | null> {
+  /**
+   * Solve a ring puzzle asynchronously.
+   * @param ring The ring data to find a solution for.
+   * @returns A promise that resolves with a found solution, or null if none found.
+   */
+  async solve(ring: RingModel): Promise<Solution | null> {
     const worker = await this.getWorker();
     const channel = new MessageChannel();
     worker.postMessage(
@@ -50,7 +56,7 @@ export class Solver {
     });
   }
 
-  getRingData(ring: Ring): RingData {
+  getRingData(ring: RingModel): RingData {
     const ringData: RingData = [0, 0, 0, 0];
     for (let r = 0; r < this.ring_settings.num_rings; ++r) {
       let subring = 0;
